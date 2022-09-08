@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+ 
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>net.technisys.cyberbank.cmm.wmb.8.flows</groupId>
+	<artifactId>singleSelectOfferToPDFProcedure</artifactId>
+	<version>1.1.28</version> 
+	<packaging>pom</packaging>
+	<name>singleSelectOfferToPDFProcedure</name>
+	<description>singleSelectOfferToPDFProcedure</description>
+	<url>http//www.technisys.net/services</url>
+	<inceptionYear>2017</inceptionYear>
+
+	
+	<!--============================================================[ Parent Pom ]======================================================= -->
+	<!--  parent>
+		 <artifactId>wmb-flow-master-pom</artifactId>
+		    <groupId>net.technisys.cyberbank.poms</groupId>
+		    <version>2.2.0</version>
+	</parent-->
+	<properties>
+		<filesToPackage>
+			singleSelectOfferToPDFProcedure/singleSelectOfferToPDFProcedure.esql
+			singleSelectOfferToPDFProcedure/singleSelectOfferToPDFProcedure.msgflow
+		</filesToPackage>
+	</properties>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>1.3.1</version>
+				<executions>
+					<execution>
+						<id>enforce-properties</id>
+						<phase>package</phase>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireProperty>
+									<property>filesToPackage</property>
+                  					<message>"filesToPackage debe estar definido pom.xml, y debe especificar la lista de archivos a incluir en el BAR."</message>
+								</requireProperty>
+								<requireProperty>
+									<property>MQSI_JARPATH</property>
+                  					<message>"MQSI_JARPATH debe apuntar al directorio de jars MQ. Los jars pueden descargarse de https://drive.google.com/open?id=0B7UEzpShucPmaWFfUi1ienNNY1E"</message>
+								</requireProperty>
+							</rules>
+							<fail>true</fail>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-eclipse-plugin</artifactId>
+				<version>2.9</version>
+				<configuration>
+					<packaging>jar</packaging>
+					<eclipseProjectDir>.</eclipseProjectDir>
+					<useProjectReferences>true</useProjectReferences>
+					<limitProjectReferencesToWorkspace>false</limitProjectReferencesToWorkspace>
+					<buildcommands>
+						<buildcommand>com.ibm.etools.mft.applib.mbprojectbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.msg.validation.dfdl.mlibdfdlbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.flow.adapters.adapterbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.flow.sca.scabuilder</buildcommand>
+						<buildcommand>com.ibm.etools.msg.validation.dfdl.mbprojectresourcesbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.esql.lang.esqllangbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.map.builder.mslmappingbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.flow.msgflowxsltbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.flow.msgflowbuilder</buildcommand>
+						<buildcommand>com.ibm.etools.mft.pattern.capture.PatternBuilder</buildcommand>
+						<buildcommand>com.ibm.etools.msg.validation.dfdl.dfdlqnamevalidator</buildcommand>
+						<buildcommand>com.ibm.etools.mft.bar.ext.barbuilder</buildcommand>
+					</buildcommands>
+					<additionalProjectnatures>
+						<projectnature>com.ibm.etools.msgbroker.tooling.messageBrokerProjectNature</projectnature>
+					</additionalProjectnatures>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.7</version>
+				<dependencies>
+					<dependency>
+						<groupId>ant-contrib</groupId>
+						<artifactId>ant-contrib</artifactId>
+						<version>1.0b3</version>
+						<exclusions>
+							<exclusion>
+								<groupId>ant</groupId>
+								<artifactId>ant</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>generateBar</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target xmlns:ac="antlib:net.sf.antcontrib">
+								<echo message="Starting BAR creation" />
+								<echo message="Java Home: ${java.home}" />
+								<echo message="MQ jar path: ${MQSI_JARPATH}" />
+								<echo message="Base Directory: ${basedir}" />
+								<!-- Elimino los enters,tabs y espacios sobrantes -->
+								<ac:propertyregex 
+									property="normalizedFilesToPackage"
+									input="${filesToPackage}" 
+									regexp="\s+" 
+									replace=" "
+									global="true"/>
+								<echo message="The following files will be included in package: ${normalizedFilesToPackage}" />
+								<!-- Ejecuto el empaquetado -->
+								<java classname="com.ibm.broker.config.appdev.FlowRendererBAR"
+									failonerror="true" fork="true">
+									<arg line="-a target/${project.artifactId}-${project.version}.bar" />
+									<arg line="-w ${basedir}" />
+									<arg line="-o ${normalizedFilesToPackage}" />
+									<classpath>
+										<fileset dir="${MQSI_JARPATH}/lib">
+											<include name="*.jar" />
+										</fileset>
+										<fileset dir="${MQSI_JARPATH}/messages">
+											<include name="*.jar" />
+										</fileset>
+									</classpath>
+								</java>
+								<echo message="BAR creation finished" />
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+
+
+		</plugins>
+	</build>	
+
+	<!--===========================================================[Properties]======================================================= -->
+	 <!--  properties>
+	     <dependencies.directory>target/dependencies</dependencies.directory>
+	     <broker.version>wmb8</broker.version>
+         <toolkit.home>/opt/IBM/WMBT800</toolkit.home>
+         <broker.deploy>-deployAsSource</broker.deploy>
+         <workspace.directory>/home/monica/BrokerCompilationWorkspace/singleSelectOfferToPDFProcedure</workspace.directory>
+	 </properties-->
+
+	<!--===========================================================[ Dependencies ]====================================================== -->
+	<dependencies>
+		<dependency>
+			<groupId>net.technisys.cyberbank.cmm.wmb.flows</groupId>
+			<artifactId>common_resources</artifactId>
+			<classifier>project</classifier>
+			<version>2.12.4</version>
+			<type>zip</type>
+		</dependency>
+	</dependencies>
+	
+</project> 
+
+
+
+ 

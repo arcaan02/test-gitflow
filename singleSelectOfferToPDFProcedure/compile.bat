@@ -1,0 +1,1 @@
+mvn clean package -Dtoolkit.home="C:\Program Files (x86)\IBM\WMBT800" -Dbroker.version="wmb8"

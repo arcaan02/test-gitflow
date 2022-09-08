@@ -1,0 +1,8 @@
+1.1.21
+se agregan campos de cancelacion de prestamos
+--------------------------------------------------------------------------------
+1.1.27
+Se agregan mapeos de procedure.procedureProductType
+--------------------------------------------------------------------------------
+1.1.28
+Se aumenta la invocación al servicio massiveSelectInsuranceCompanyForCreditCard para obtener los nombres de las companias de seguros

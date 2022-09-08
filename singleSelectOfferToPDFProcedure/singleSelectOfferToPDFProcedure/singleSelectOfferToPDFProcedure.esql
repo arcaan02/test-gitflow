@@ -1,0 +1,2005 @@
+BROKER SCHEMA singleSelectOfferToPDFProcedure
+
+DECLARE srvRs NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectOfferToPDFProcedure/rq/v1.0';
+
+DECLARE srvMsOffAccByProc NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectOfferAcceptedByProcedure/rq/v0.0';
+DECLARE M_S_OFFERACCEPTEDBYPROCEDURE_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsCusOpByProc NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectCustomerOperationByProcedure/rq/v0.0';
+DECLARE M_S_CUSTOMEROPERATIONBYPROCEDURE_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsOffComAcc NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectOfferComponentAccepted/rq/v0.0';
+DECLARE M_S_OFFERCOMPONENTACCEPTED_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsCardProByProc NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectCardProspectAdditionalByProcedure/rq/v0.0';
+DECLARE M_S_CARDPROSPECTADDITIONALBYPROCEDURE_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsInsPers NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectInsurancePersistenceByProductType/rq/v0.0';
+DECLARE M_S_INSURANCEPERSISTENCE_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvSsProPersOrDraft NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectProcedurePersistenceOrDraft/rq/v0.0';
+DECLARE S_S_PROCEDUREPERSISTENCEORDRAFT_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsWagAgrByCust NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectWageAgreementByCustomer/rq/v0.0';
+DECLARE M_S_WAGEAGREEMENTBYCUSTOMER_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsCusOp NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectCustomerOperation/rq/v0.0';
+DECLARE M_S_CUSTOMEROPERATION_VERSION EXTERNAL CHARACTER '1.0';
+
+DECLARE srvMsAccDetByProdId NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectAccountDetailByProductId/rq/v0.0';
+DECLARE M_S_SELECTACCOUNTDETAILBYPRODUCTID_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvSsProdDet NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectProductDetail/rq/v0.0';
+DECLARE S_S_PRODUCTDETAIL_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsCredCarAddByAcc NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectCreditCardAdditionalByAccount/rq/v0.0';
+DECLARE M_S_CREDITCARDADDITIONALBYACCOUNT_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvSsProdDesc NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectProductDescription/rq/v0.0';
+DECLARE S_S_PRODUCTDESCRIPTION_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsLimCardDb NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectLimitCardDb/rq/v1.0';
+DECLARE M_S_LIMITCARDDB_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvSsLoanProDet NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectLoanProcedureDetail/rq/v1.0';
+DECLARE S_S_LOANPRODETAIL_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvSsOffDesForLoa NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectOfferDescriptionForLoan/rq/v0.0';
+DECLARE S_S_OFFERDESCLOAN_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvSsCustomerPersonBantotal NAMESPACE 'http://www.technisys.net/cmm/services/singleSelectCustomerPersonBantotal/rq/v0.0';
+DECLARE S_S_CUSTOMERPERSONBANTOTAL_VERSION EXTERNAL CHARACTER '0.0';
+
+DECLARE srvMsProcedureLogByProcedure NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectProcedureLogByProcedure/rq/v0.0';
+DECLARE M_S_PROCEDURELOGBYPROCEDURE_VERSION EXTERNAL CHARACTER '0.0';
+           
+DECLARE srvMsInsuranceCompanyForCreditCard NAMESPACE 'http://www.technisys.net/cmm/services/massiveSelectInsuranceCompanyForCreditCard/rq/v0.0';
+DECLARE M_S_INSURANCECOMPANYFORCREDITCARD_VERSION EXTERNAL CHARACTER '0.0';
+
+
+CREATE FUNCTION DecodeBrand(IN pCodeBrand CHAR) RETURNS CHAR
+	BEGIN
+		IF pCodeBrand='VI'
+			OR pCodeBrand='AM'
+			OR pCodeBrand='MA' THEN
+				SET pCodeBrand = REPLACE(pCodeBrand,'VI','VISA');
+				SET pCodeBrand = REPLACE(pCodeBrand,'AM','AMEX');
+				SET pCodeBrand = REPLACE(pCodeBrand,'MA','MASTER');
+		END IF;
+		RETURN pCodeBrand;
+	END;
+	
+CREATE FUNCTION DecodeProduct(IN pCodeProduct CHAR) RETURNS CHAR
+	BEGIN
+		IF pCodeProduct='CREDIT_CARD'
+			OR pCodeProduct='CREDIT_CARD_VISA'
+			OR pCodeProduct='CREDIT_CARD_MASTER'
+			OR pCodeProduct='CARD_DB' THEN
+				SET pCodeProduct = REPLACE(pCodeProduct,'CREDIT_CARD_VISA','TC');
+				SET pCodeProduct = REPLACE(pCodeProduct,'CREDIT_CARD_MASTER','TC');
+				SET pCodeProduct = REPLACE(pCodeProduct,'CREDIT_CARD','TC');
+				SET pCodeProduct = REPLACE(pCodeProduct,'CARD_DB','TD');
+		END IF;
+		RETURN pCodeProduct;
+	END;
+	
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_BuildMsgsToSplit1
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE soap NAMESPACE 'http://www.w3.org/2003/05/soap-envelope';
+		SET Environment.Variables.MsgOriginal = InputRoot;
+
+		--Properties
+		SET OutputRoot.Properties		=Environment.Variables.MsgOriginal.Properties;
+		SET OutputRoot.MQMD				=Environment.Variables.MsgOriginal.MQMD;	
+		SET OutputRoot.MQMD.ReplyToQ	='SINGLESELECTOFFERTOPDFPROCEDURE.REPLY';
+
+		-- Se crea la estructura basica de mensajes para el Split and Join
+		CREATE FIELD OutputRoot.XMLNSC.message;
+		CREATE FIELD OutputRoot.XMLNSC.message.header;
+		CREATE FIELD OutputRoot.XMLNSC.message.body.messages;
+		DECLARE rOutMsg REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutHeader REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutBody REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+
+		DECLARE rOrigMsg  REFERENCE TO Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Body.*:singleSelectOfferToPDFProcedureRequest;
+		--Seteo variables para reuso y optimizacion
+		DECLARE vSexCode CHARACTER rOrigMsg.procedure.customer.basicIndividualData.sexCode.mnemonic;	
+		DECLARE vIdNumb CHARACTER rOrigMsg.procedure.customer.customerIdentification.identificationNumber;	
+		DECLARE vIdType CHARACTER rOrigMsg.procedure.customer.customerIdentification.identificationType.mnemonic;	
+		DECLARE vPiid CHARACTER rOrigMsg.procedure.piid;	
+
+		/******************* massiveSelectOfferAcceptedByProcedure ************************/
+		CREATE LASTCHILD OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectOfferAcceptedByProcedure';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_OFFERACCEPTEDBYPROCEDURE_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsOffAccByProc NAME 'massiveSelectOfferAcceptedByProcedureRequest';	
+		SET rOutBody.customer.(XMLNSC.Attribute)name				='customer';
+		SET rOutBody.customer.basicIndividualData.sexCode.mnemonic	=vSexCode;
+		SET rOutBody.customer.identificationNumber					=vIdNumb;
+		SET rOutBody.customer.identificationType.mnemonic			=vIdType;
+			
+		SET rOutBody.procedure.(XMLNSC.Attribute)name	='procedure' ;
+		SET rOutBody.procedure.piid						=vPiid;		
+		SET rOutBody.procedure.procedureProductType		=rOrigMsg.procedure.procedureProductType;
+		SET rOutBody.procedure.procedureType.mnemonic	=rOrigMsg.procedure.procedureType.mnemonic;
+		/******************* Fin massiveSelectOfferAcceptedByProcedure ************************/
+		
+		/******************* massiveSelectCustomerOperationByProcedure ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectCustomerOperationByProcedure';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_CUSTOMEROPERATIONBYPROCEDURE_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsCusOpByProc NAME 'massiveSelectCustomerOperationByProcedureRequest';	
+		SET rOutBody.customer.(XMLNSC.Attribute)name				='customer';
+		SET rOutBody.customer.basicIndividualData.sexCode.mnemonic	=vSexCode;
+		SET rOutBody.customer.identificationNumber					=vIdNumb;
+		SET rOutBody.customer.identificationType.mnemonic			=vIdType;
+			
+		SET rOutBody.procedure.(XMLNSC.Attribute)name	='procedure' ;
+		SET rOutBody.procedure.piid						=vPiid;	
+		SET rOutBody.procedure.procedureProductType		=rOrigMsg.procedure.procedureProductType;
+		SET rOutBody.procedure.procedureType.mnemonic	=rOrigMsg.procedure.procedureType.mnemonic;	
+		/******************* Fin massiveSelectCustomerOperationByProcedure ************************/
+
+		/******************* massiveSelectOfferComponentAccepted ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectOfferComponentAccepted';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_OFFERCOMPONENTACCEPTED_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsOffComAcc NAME 'massiveSelectOfferComponentAcceptedRequest';	
+		SET rOutBody.procedure.(XMLNSC.Attribute)name							='procedure' ;
+		SET rOutBody.procedure.customer.basicIndividualData.sexCode.mnemonic	=vSexCode;
+		SET rOutBody.procedure.customer.identificationNumber					=vIdNumb;
+		SET rOutBody.procedure.customer.identificationType.mnemonic				=vIdType;			
+		SET rOutBody.procedure.piid												=vPiid;	
+		SET rOutBody.procedure.procedureProductType								=rOrigMsg.procedure.procedureProductType;	
+		SET rOutBody.procedure.procedureType.mnemonic							=rOrigMsg.procedure.procedureType.mnemonic;
+		/******************* Fin massiveSelectOfferComponentAccepted ************************/
+
+		/******************* massiveSelectCardProspectAdditionalByProcedure ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectCardProspectAdditionalByProcedure';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_CARDPROSPECTADDITIONALBYPROCEDURE_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsCardProByProc NAME 'massiveSelectCardProspectAdditionalByProcedureRequest';	
+		SET rOutBody.procedure.(XMLNSC.Attribute)name							='procedure' ;
+		SET rOutBody.procedure.customer.basicIndividualData.sexCode.mnemonic	=vSexCode;
+		SET rOutBody.procedure.customer.identificationNumber					=vIdNumb;
+		SET rOutBody.procedure.customer.identificationType.mnemonic				=vIdType;			
+		SET rOutBody.procedure.piid												=vPiid;	
+		SET rOutBody.procedure.procedureProductType								=rOrigMsg.procedure.procedureProductType;	
+		SET rOutBody.procedure.procedureType.mnemonic							=rOrigMsg.procedure.procedureType.mnemonic;
+		/******************* Fin massiveSelectCardProspectAdditionalByProcedure ************************/
+
+		/******************* massiveSelectInsurancePersistenceByProductType ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectInsurancePersistenceByProductType';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_INSURANCEPERSISTENCE_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsInsPers NAME 'massiveSelectInsurancePersistenceByProductTypeRequest';	
+		SET rOutBody.procedure.(XMLNSC.Attribute)name							='procedure' ;
+		SET rOutBody.procedure.customer.basicIndividualData.sexCode.mnemonic	=vSexCode;	
+			
+		SET rOutBody.procedure.customer.customerIdentification.identificationNumber			=vIdNumb;
+		SET rOutBody.procedure.customer.customerIdentification.identificationType.mnemonic	=vIdType;	
+				
+		SET rOutBody.procedure.piid												=vPiid;	
+		SET rOutBody.procedure.procedureProductType								=rOrigMsg.procedure.procedureProductType;
+		SET rOutBody.procedure.procedureType.mnemonic								=rOrigMsg.procedure.procedureType.mnemonic;
+		
+		SET rOutBody.productType.sProductTypeId = 'PQ';	
+		SET rOutBody.productType.(XMLNSC.Attribute)name='productType';
+		/******************* Fin massiveSelectInsurancePersistenceByProductType ************************/
+
+		/******************* singleSelectProcedurePackagePersistence ************************
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='singleSelectProcedurePackagePersistence';
+		SET rOutHeader.*:metadata.serviceVersion	=S_S_PROCEDUREPACKAGEPERSISTENCE_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsProPacPers NAME 'singleSelectProcedurePackagePersistenceRequest';	
+		SET rOutBody.procedure.(XMLNSC.Attribute)name							='procedure';		
+		SET rOutBody.procedure.piid												=vPiid;		
+		******************* Fin singleSelectProcedurePackagePersistence ************************/
+
+		/******************* singleSelectProcedurePersistenceOrDraft ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='singleSelectProcedurePersistenceOrDraft';
+		SET rOutHeader.*:metadata.serviceVersion	=S_S_PROCEDUREPERSISTENCEORDRAFT_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsProPersOrDraft NAME 'singleSelectProcedurePersistenceOrDraftRequest';	
+		SET rOutBody.procedure.(XMLNSC.Attribute)name							='procedure';
+		
+		SET rOutBody.procedure.customer.basicIndividualData.sexCode.mnemonic	=vSexCode;	
+			
+		SET rOutBody.procedure.customer.customerIdentification.identificationNumber			=vIdNumb;
+		SET rOutBody.procedure.customer.customerIdentification.identificationType.mnemonic	=vIdType;	
+				
+		SET rOutBody.procedure.piid												=vPiid;
+		SET rOutBody.procedure.procedureProductType								=rOrigMsg.procedure.procedureProductType;	
+		SET rOutBody.procedure.procedureType.mnemonic								=rOrigMsg.procedure.procedureType.mnemonic;	
+		/******************* Fin singleSelectProcedurePersistenceOrDraft ************************/
+
+		/******************* massiveSelectWageAgreementByCustomer ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectWageAgreementByCustomer';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_WAGEAGREEMENTBYCUSTOMER_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsWagAgrByCust NAME 'massiveSelectWageAgreementByCustomerRequest';		
+
+ 		SET rOutBody.customer = rOrigMsg.procedure.customer;
+ 		SET rOutBody.customer.(XMLNSC.Attribute)name				='customer';
+ 		SET rOutBody.customer.(XMLNSC.Attribute)name				='procedure';
+ 		SET rOutBody.procedure.procedureType.mnemonic = rOrigMsg.procedure.procedureType.mnemonic;
+		/******************* Fin massiveSelectWageAgreementByCustomer ************************/
+		
+		
+		/******************* massiveSelectInsuranceCompanyForCreditCard ************************/
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectInsuranceCompanyForCreditCard';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_INSURANCECOMPANYFORCREDITCARD_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsInsuranceCompanyForCreditCard NAME 'massiveSelectInsuranceCompanyForCreditCardRequest';
+																		
+		
+		DECLARE indexInsuranceCompanys INTEGER 1;
+		DECLARE countInsuranceCompanys INTEGER CARDINALITY (rOutBody.collection.insuranceCompanys[]);
+		
+		--Se arma cada invocacion por separado para ejecutar de una por vez.
+		WHILE (indexInsuranceCompanys <= countInsuranceCompanys) DO
+				SET rOutBody.collection.insuranceCompany.originalCodes = rOrigMsg.collection.insuranceCompany[indexInsuranceCompanys].originalCodes;
+				SET rOutBody.collection.insuranceCompany.shortDesc = rOrigMsg.collection.insuranceCompany[indexInsuranceCompanys].shortDesc;
+				SET indexInsuranceCompanys = indexInsuranceCompanys + 1;
+		END WHILE;
+		
+		/******************* Fin massiveSelectInsuranceCompanyForCreditCard ************************/
+
+		RETURN TRUE;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_BuildMsgsToSplit2
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE soap NAMESPACE 'http://www.w3.org/2003/05/soap-envelope';
+		--Properties
+		SET OutputRoot.Properties		=Environment.Variables.MsgOriginal.Properties;
+		SET OutputRoot.MQMD				=Environment.Variables.MsgOriginal.MQMD;	
+		SET OutputRoot.MQMD.ReplyToQ	='SINGLESELECTOFFERTOPDFPROCEDURES2.ENTRY';
+
+		DECLARE rInBody  REFERENCE TO InputRoot.XMLNSC.message;
+
+		SET Environment.Variables.MSInsurancePersistence.*:Envelope					=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectInsurancePersistenceByProductType');
+		SET Environment.Variables.MSOfferAcceptedByProcedure.*:Envelope				=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectOfferAcceptedByProcedure');
+		SET Environment.Variables.MSCustomerOperationByProcedure.*:Envelope			=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectCustomerOperationByProcedure');
+		SET Environment.Variables.MSOfferComponentAccepted.*:Envelope				=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectOfferComponentAccepted');
+		SET Environment.Variables.MSCardProspectAdditionalByProcedure.*:Envelope	=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectCardProspectAdditionalByProcedure');
+		SET Environment.Variables.SSProcedurePersistenceOrDraft.*:Envelope			=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectProcedurePersistenceOrDraft');
+--		SET Environment.Variables.SSProcedurePackagePersistence.*:Envelope			=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectProcedurePackagePersistence');
+		SET Environment.Variables.MSWageAgreementByCustomer.*:Envelope				=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectWageAgreementByCustomer');
+		SET Environment.Variables.MSInsuranceCompanyForCreditCard.*:Envelope		=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectInsuranceCompanyForCreditCard');
+		
+		-- Se crea la estructura basica de mensajes para el Split and Join
+		CREATE FIELD OutputRoot.XMLNSC.message;
+		CREATE FIELD OutputRoot.XMLNSC.message.header;
+		CREATE FIELD OutputRoot.XMLNSC.message.body.messages;
+		DECLARE rOutMsg REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutHeader REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutBody REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutBody1 REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+
+		DECLARE rOrigMsg  REFERENCE TO Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Body.*:singleSelectOfferToPDFProcedureRequest;
+
+		DECLARE index INTEGER 1;		
+		DECLARE indexArray INTEGER 0;
+		DECLARE vAuxCh0 CHARACTER '';
+		DECLARE vAuxCh1 CHARACTER '';
+		DECLARE vAuxCh2 CHARACTER '';
+		DECLARE vPaqId CHARACTER '';		
+
+		/******************* massiveSelectAccountDetailByProductId ************************/
+		CREATE LASTCHILD OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectAccountDetailByProductId';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_SELECTACCOUNTDETAILBYPRODUCTID_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsAccDetByProdId NAME 'massiveSelectAccountDetailByProductIdRequest';	
+
+		SET rInBody		=Environment.Variables.MSOfferComponentAccepted.*:Envelope.*:Body.*:massiveSelectOfferComponentAcceptedResponse.collection;
+		SET index		=1;		
+		SET indexArray	=CARDINALITY(rInBody.offer[]);
+		
+		 SET rOutBody.collection.(XMLNSC.Attribute)name='packageProducts';	
+		WHILE (index <= indexArray) DO
+			IF( rInBody.offer[index].productId <> '' )THEN 
+	            SET rOutBody.collection.packageProduct[index].customerOperationPermission.customerOperation.operationId						=rInBody.offer[index].productId;		
+				SET rOutBody.collection.packageProduct[index].customerOperationPermission.customerOperation.subproduct.product.productId	=rInBody.offer[index].optionalProductId;
+/*		    	IF NOT CONTAINS (vPaqId,  rInBody.offer[index].productId || '*') THEN --Id de PQ
+					SET vPaqId = vPaqId || rInBody.offer[index].productId || '*';
+				END IF;	*/
+		    END IF;
+			SET index = index + 1;
+		END WHILE;		
+		/******************* Fin massiveSelectAccountDetailByProductId ************************/
+
+		/******************* singleSelectProductDetail ************************/
+		SET rInBody		=Environment.Variables.MSOfferAcceptedByProcedure.*:Envelope.*:Body.*:massiveSelectOfferAcceptedByProcedureResponse.collection;
+		SET index		=1;		
+		SET indexArray	=CARDINALITY(rInBody.offer[]);
+		
+		WHILE (index <= indexArray) DO
+			IF( rInBody.offer[index].productId <> '' )THEN 
+				CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+				CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+				-- Header
+				SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+				SET rOutHeader.*:metadata.serviceId			='singleSelectProductDetail';
+				SET rOutHeader.*:metadata.serviceVersion	=S_S_PRODUCTDETAIL_VERSION;	
+				-- Body
+				CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+				CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsProdDet NAME 'singleSelectProductDetailRequest';	
+
+		 		SET rOutBody.product.(XMLNSC.Attribute)name	='product';	
+	            SET rOutBody.product.productId				=rInBody.offer[index].productId;	
+		    END IF;
+			SET index = index + 1;
+		END WHILE;
+		/******************* Fin singleSelectProductDetail ************************/
+
+		/******************* massiveSelectCustomerOperation ************************/		
+		SET Environment.Variables.Temp.CustomerOperation[] = 
+		(SELECT rList.creditCardAccount[]	
+			FROM Environment.Variables.MSCustomerOperationByProcedure.*:Envelope.*:Body.*:massiveSelectCustomerOperationByProcedureResponse.collection.customerOperation[] AS rList
+			WHERE rList.subproduct.product.productType.mnemonic = 'VI'
+				OR rList.subproduct.product.productType.mnemonic = 'MA'
+				OR rList.subproduct.product.productType.mnemonic = 'AM');
+				
+		IF CARDINALITY (Environment.Variables.Temp.CustomerOperation[]) > 0 THEN
+			SET Environment.Variables.Temp = NULL;	
+			CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+			CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+			-- Header
+			SET rOutHeader										=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+			SET rOutHeader.*:metadata.serviceId					='massiveSelectCustomerOperation';
+			SET rOutHeader.*:metadata.serviceVersion			=M_S_CUSTOMEROPERATION_VERSION;	
+			SET rOutHeader.*:metadata.executingChannel.mnemonic	='TU';	
+			SET rOutHeader.*:metadata.targetChannel.mnemonic	='TU';	
+			-- Body
+			CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+			CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsCusOp NAME 'massiveSelectCustomerOperationRequest';	
+	
+			SET rOutBody.generic.mode.(XMLNSC.Attribute)type	='java.lang.String';	
+		    SET rOutBody.generic.mode							='FULL';	
+			SET rOutBody.collection.(XMLNSC.Attribute)name		='productFamilies';	
+		    SET rOutBody.collection.productFamily.mnemonic		='CREDIT_CARDS';	
+		    SET rOutBody.queryType.(XMLNSC.Attribute)name		='queryType';	
+		    SET rOutBody.queryType.mnemonic						='ALL';	
+		    SET rOutBody.segment.name							='PERSONA';	
+		END IF;	
+		
+		SET Environment.Variables.Temp.CustomerOperation = NULL;
+		/******************* Fin massiveSelectCustomerOperation ************************/
+		
+		/******************* massiveSelectCreditCardAdditionalByAccount ************************/
+		SET rInBody		=Environment.Variables.MSCustomerOperationByProcedure.*:Envelope.*:Body.*:massiveSelectCustomerOperationByProcedureResponse.collection;
+		SET index		=1;		
+		SET indexArray	=CARDINALITY(rInBody.customerOperation[]);
+		
+		CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='massiveSelectCreditCardAdditionalByAccount';
+		SET rOutHeader.*:metadata.serviceVersion	=M_S_CREDITCARDADDITIONALBYACCOUNT_VERSION;	
+		-- Body
+		CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+		CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsCredCarAddByAcc NAME 'massiveSelectCreditCardAdditionalByAccountRequest';	
+		
+		SET rOutBody.collection.(XMLNSC.Attribute)name	='creditCards';	
+		SET vAuxCh0	='';
+
+		WHILE (index <= indexArray) DO --TN 2164978
+			SET vAuxCh1 = rInBody.customerOperation[index].subproduct.product.productType.mnemonic;
+			SET vAuxCh2 = rInBody.customerOperation[index].creditCardAccount;
+
+			IF NOT CONTAINS (vAuxCh0, '*' || vAuxCh1||vAuxCh2 || '*')
+				AND (vAuxCh1 = 'VI' OR vAuxCh1 = 'AM' OR vAuxCh1 = 'MA')THEN 
+					CREATE LASTCHILD OF rOutBody.collection AS rOutBody1 NAME 'creditCard';	
+		            SET rOutBody1.creditCardAccount.account.operationId	=vAuxCh2;		
+		            SET rOutBody1.creditCardAccount.brand.mnemonic		=DecodeBrand (vAuxCh1);	
+		            SET vAuxCh0 = vAuxCh0 || '*' || vAuxCh1||vAuxCh2 || '*';	
+		    END IF;
+/*			IF NOT CONTAINS (vPaqId, rInBody.customerOperation[index].packageId || '*') THEN --Id de PQ
+				SET vPaqId = vPaqId || rInBody.customerOperation[index].packageId || '*';
+			END IF;*/
+			SET vPaqId = rInBody.customerOperation[index].packageId;
+			SET index = index + 1;
+		END WHILE;
+		/******************* Fin massiveSelectCreditCardAdditionalByAccount ************************/
+		
+		/******************* singleSelectProductDescription ************************/
+		--WHILE (LENGTH(vPaqId) > 0) DO
+			CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+			CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+			-- Header
+			SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+			SET rOutHeader.*:metadata.serviceId			='singleSelectProductDescription';
+			SET rOutHeader.*:metadata.serviceVersion	=S_S_PRODUCTDESCRIPTION_VERSION;	
+			-- Body
+			CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+			CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsProdDesc NAME 'singleSelectProductDescriptionRequest';	
+
+	 		SET rOutBody.packageProduct.(XMLNSC.Attribute)name	='packageProduct';	
+            SET rOutBody.packageProduct.customerOperationPermission.customerOperation.packageId	=vPaqId;		
+
+ /*           SET rOutBody.packageProduct.customerOperationPermission.customerOperation.packageId	=SUBSTRING (vPaqId BEFORE '*');		
+			SET vPaqId = SUBSTRING (vPaqId AFTER '*');*/
+		--END WHILE;
+		/******************* Fin singleSelectProductDescription ************************/
+		
+		/******************* singleSelectCustomerPersonBantotal ************************/
+		IF(Environment.Variables.SSProcedurePersistenceOrDraft.*:Envelope.*:Body.*:singleSelectProcedurePersistenceOrDraftResponse.procedure.hasAttorney = 'true') THEN
+
+			CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+			CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+
+			SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+			SET rOutHeader.*:metadata.serviceId			='singleSelectCustomerPersonBantotal';
+			SET rOutHeader.*:metadata.serviceVersion	=S_S_CUSTOMERPERSONBANTOTAL_VERSION;	
+
+			-- Header
+			-- Body
+			CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+			CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsCustomerPersonBantotal NAME 'singleSelectCustomerPersonBantotalRequest';	
+		
+			SET rOutBody.bantotalAccount.(XMLNSC.Attribute)name	= 'bantotalAccount';
+			SET rOutBody.bantotalAccount.customerOperationPermission.customerOperation.operationId = '';
+			
+			SET rOutBody.customer.(XMLNSC.Attribute)name = 'customer';
+			SET rOutBody.customer.identificationNumber = Environment.Variables.SSProcedurePersistenceOrDraft.*:Envelope.*:Body.*:singleSelectProcedurePersistenceOrDraftResponse.procedure.customer.attorney.identificationNumber;
+			SET rOutBody.customer.identificationType.mnemonic = Environment.Variables.SSProcedurePersistenceOrDraft.*:Envelope.*:Body.*:singleSelectProcedurePersistenceOrDraftResponse.procedure.customer.attorney.identificationType.mnemonic;
+			SET rOutBody.customer.residenceCode.mnemonic = 'ARG';
+		
+		END IF;
+		/******************* Fin singleSelectCustomerPersonBantotal ************************/
+		
+
+		/******************* massiveSelectProcedureLogByProcedure ************************/
+		DECLARE rMSOffAccByPro		REFERENCE TO Environment.Variables.MSOfferAcceptedByProcedure.*:Envelope.*:Body.*:massiveSelectOfferAcceptedByProcedureResponse;
+
+		DECLARE vOfferPP CHARACTER rMSOffAccByPro.generic.offerPP;
+		IF vOfferPP IS NOT NULL AND vOfferPP <> '' THEN
+			SET Environment.Variables.Temp.Offer=
+							THE(SELECT offCol	
+								FROM rMSOffAccByPro.collection.offer[] AS offCol
+								WHERE offCol.offerId = vOfferPP);
+						
+			IF(Environment.Variables.Temp.Offer.status.mnemonic = 'REJECTED') THEN
+	
+				CREATE NEXTSIBLING OF rOutMsg AS rOutMsg NAMESPACE soap NAME 'Envelope';
+				CREATE LASTCHILD OF rOutMsg AS rOutHeader NAMESPACE soap NAME 'Header';	
+	
+				SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+				SET rOutHeader.*:metadata.serviceId			='massiveSelectProcedureLogByProcedure';
+				SET rOutHeader.*:metadata.serviceVersion	=M_S_PROCEDURELOGBYPROCEDURE_VERSION;	
+	
+				-- Header
+				-- Body
+				CREATE LASTCHILD OF rOutMsg AS rOutBody NAMESPACE soap NAME 'Body';	
+				CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsProcedureLogByProcedure NAME 'massiveSelectProcedureLogByProcedureRequest';	
+			
+				SET rOutBody.procedure.(XMLNSC.Attribute)name	= 'procedure';
+				SET rOutBody.procedure.piid = rOrigMsg.procedure.piid;
+				
+			END IF; --Environment.Variables.Temp.Offer.offer.status.mnemonic = 'REJECTED'
+			
+			SET Environment.Variables.Temp.Offer=NULL;
+
+		END IF; --vOfferPP <> NULL
+		/******************* Fin massiveSelectProcedureLogByProcedure ************************/
+
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_BuildMsgsOut
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE soap NAMESPACE 'http://www.w3.org/2003/05/soap-envelope';
+		--Properties
+		SET OutputRoot.Properties		=Environment.Variables.MsgOriginal.Properties;
+		SET OutputRoot.MQMD				=Environment.Variables.MsgOriginal.MQMD;	
+		SET OutputRoot.MQMD.ReplyToQ	='SINGLESELECTOFFERTOPDFPROCEDURES3.ENTRY';
+		SET OutputRoot.MQMD.CorrelId	=Environment.Variables.MsgOriginal.MQMD.MsgId;
+		
+
+		DECLARE rInBody  REFERENCE TO InputRoot.XMLNSC.message;
+		DECLARE rOutBodyCollection  REFERENCE TO OutputRoot; --Nivel collection
+		DECLARE rOutBody0  REFERENCE TO OutputRoot; --Nivel 0
+		DECLARE rOutBody00  REFERENCE TO OutputRoot; --Nivel 0
+		DECLARE rOutBody1  REFERENCE TO OutputRoot; --Nivel 1
+		DECLARE rOutBody11  REFERENCE TO OutputRoot; --Nivel 1
+
+		DECLARE index0 INTEGER 1; DECLARE indexArray0 INTEGER 0; --Nivel 0
+		DECLARE index1 INTEGER 1; DECLARE indexArray1 INTEGER 0; --Nivel 1
+		DECLARE index2 INTEGER 1; DECLARE indexArray2 INTEGER 0; --Nivel 2
+
+		DECLARE vAuxChar1 CHARACTER ''; DECLARE vAuxChar2 CHARACTER ''; --Variables Aux para comparar
+		DECLARE vAuxHolderFlag BOOLEAN FALSE;
+		DECLARE vAuxCheckbookFlag BOOLEAN FALSE; --TRUE Checkbook en ofertas aceptadas | FALSE en caso de checkbook en existente
+		DECLARE vAuxAgreementFlag BOOLEAN FALSE; --TRUE Agreement en ofertas aceptadas | FALSE en caso de Agreement en existente
+
+/***** Backend Environment References *******/
+		DECLARE rMSAccDetByProId	REFERENCE TO Environment.Variables.MSAccountDetailByProductId.*:Envelope.*:Body.*:massiveSelectAccountDetailByProductIdResponse.collection;
+		DECLARE rMSCusOper			REFERENCE TO Environment.Variables.MSCustomerOperation.*:Envelope.*:Body.*:massiveSelectCustomerOperationResponse; --Varios collections
+		DECLARE rMSInsPer			REFERENCE TO Environment.Variables.MSInsurancePersistence.*:Envelope.*:Body.*:massiveSelectInsurancePersistenceByProductTypeResponse.collection;
+--		DECLARE rSSProPacPer		REFERENCE TO Environment.Variables.SSProcedurePackagePersistence.*:Envelope.*:Body.*:singleSelectProcedurePackagePersistenceResponse.collection;
+		DECLARE rSSProPerOrDra		REFERENCE TO Environment.Variables.SSProcedurePersistenceOrDraft.*:Envelope.*:Body.*:singleSelectProcedurePersistenceOrDraftResponse;
+
+		DECLARE rMSWagAgrByCus		REFERENCE TO Environment.Variables.MSWageAgreementByCustomer.*:Envelope.*:Body.*:massiveSelectWageAgreementByCustomerResponse.collection;
+
+		DECLARE rMSOffAccByPro		REFERENCE TO Environment.Variables.MSOfferAcceptedByProcedure.*:Envelope.*:Body.*:massiveSelectOfferAcceptedByProcedureResponse.collection;
+		DECLARE rMSCusOpeByPro		REFERENCE TO Environment.Variables.MSCustomerOperationByProcedure.*:Envelope.*:Body.*:massiveSelectCustomerOperationByProcedureResponse.collection;
+		DECLARE rMSOffCom			REFERENCE TO Environment.Variables.MSOfferComponentAccepted.*:Envelope.*:Body.*:massiveSelectOfferComponentAcceptedResponse.collection;
+		DECLARE rMSCarProAddByPro	REFERENCE TO Environment.Variables.MSCardProspectAdditionalByProcedure.*:Envelope.*:Body.*:massiveSelectCardProspectAdditionalByProcedureResponse.collection;
+		DECLARE rSSProDes			REFERENCE TO Environment.Variables.SSProductDescription.*:Envelope.*:Body.*:singleSelectProductDescriptionResponse;
+
+		DECLARE rMSCreCarAddByAcc	REFERENCE TO Environment.Variables.MSCreditCardAdditionalByAccount.*:Envelope.*:Body.*:massiveSelectCreditCardAdditionalByAccountResponse.collection;
+
+		DECLARE rMSLimCarDb			REFERENCE TO Environment.Variables.MSLimitCardDb.*:Envelope.*:Body.*:massiveSelectLimitCardDbResponse.collection;
+        DECLARE rSSLoanDetail   	REFERENCE TO Environment.Variables.SSLoanProcDetail.*:Envelope.*:Body.*:singleSelectLoanProcedureDetailResponse;
+		DECLARE rSSOffDescForLoan  	REFERENCE TO Environment.Variables.SSOfferDescForLoan.*:Envelope.*:Body.*:singleSelectOfferDescriptionForLoanResponse;
+		DECLARE rSSCustomerPersonBantotal  REFERENCE TO Environment.Variables.SSCustomerPersonBantotal.*:Envelope.*:Body.*:singleSelectCustomerPersonBantotalResponse;
+		DECLARE rMSProcedureLogByProcedure REFERENCE TO Environment.Variables.MSProcedureLogByProcedure.*:Envelope.*:Body.*:massiveSelectProcedureLogByProcedureResponse;
+		DECLARE rMSInsuranceCompanyForCreditCard REFERENCE TO Environment.Variables.MSInsuranceCompanyForCreditCard.*:Envelope.*:Body.*:massiveSelectInsuranceCompanyForCreditCardResponse;
+		
+	/***************** Output *****************/
+	-- Copio Header y Body
+	SET OutputRoot.XMLNSC.soap:Envelope.soap:Header = Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;	
+
+	-- Creo el body en el mensaje de salida
+	CREATE FIELD OutputRoot.XMLNSC.soap:Envelope.soap:Body.srvRs:singleSelectOfferToPDFProcedureResponse AS rOutBodyCollection;				
+	SET rOutBodyCollection.collection.(XMLNSC.Attribute)name = 'offers';
+	
+	/***************** LISTA DE CUENTAS DE AHORRO CON MONEDAS Y ACCIONES - SOLO SE USA PARA CERTIFICACION NEGATIVA *****************/
+	CREATE LASTCHILD OF rOutBodyCollection AS rOutBody00 NAME 'collection';				
+	SET rOutBody00.(XMLNSC.Attribute)name = 'accounts'; 
+	
+     ------  -- INICIO Lista de Productos Aceptados  [ACEPTADOS] ------------------------------------------------------------------------------------------------------------
+
+     --lista de CUENTAS aceptados
+	SET index0		=1;		
+	SET indexArray0	=CARDINALITY(Environment.Variables.SSProductDetailRequestNormalized.collection[]);
+	
+	WHILE (index0 <= indexArray0) DO
+		DECLARE rSSProDetNor REFERENCE TO Environment.Variables.SSProductDetailRequestNormalized.collection[index0];
+		DECLARE vProdType CHARACTER rSSProDetNor.(XMLNSC.Attribute)type;
+		IF(vProdType ='PQ')THEN  -- PAQUETE [PQ]
+			CREATE LASTCHILD OF rOutBodyCollection.collection AS rOutBody0 NAME 'offer';
+			
+			SET rOutBody0.(XMLNSC.Attribute)name	='accepted';
+			SET rOutBody0.(XMLNSC.Attribute)type	=vProdType;
+			    
+			SET rOutBody0.statusReason.status.longDesc	='accepted';
+			SET rOutBody0.statusReason.stampAdditional	=vProdType;
+
+
+			    
+			SET rOutBody0.offerProductDetail.account.(XMLNSC.Attribute)name	='account';
+			SET rOutBody0.offerProductDetail.account.totalAgreements		=rSSProDetNor.account.totalAgreements;
+		   	     	
+			SET rOutBody0.offerProductDetail.creditCard.(XMLNSC.Attribute)name				='creditCard';	
+			SET rOutBody0.offerProductDetail.creditCard.affinityGroup						=rSSProDetNor.creditCard.affinityGroup;	
+			SET rOutBody0.offerProductDetail.creditCard.authorizationModel					=rSSProDetNor.creditCard.authorizationModel;	
+			SET rOutBody0.offerProductDetail.creditCard.activationDate						=rSSProDetNor.creditCard.activationDate;	
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount					=rSSProDetNor.creditCard.creditCardAccount;			   	     
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount.brand				=rSSProDetNor.creditCard.creditCardAccount.brand;				--mnemonic/originalCodes/shortDesc					   	       
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount.creditCardType	=rSSProDetNor.creditCard.creditCardAccount.creditCardType;	--mnemonic/originalCodes/shortDesc	
+			SET rOutBody0.offerProductDetail.creditCard.creditCardCategory					=rSSProDetNor.creditCard.creditCardCategory;					--mnemonic/originalCodes/shortDesc					   	       
+			SET rOutBody0.offerProductDetail.creditCard.installmentCharge					=rSSProDetNor.creditCard.installmentCharge;
+			SET rOutBody0.offerProductDetail.creditCard.maintenanceCharge					=rSSProDetNor.creditCard.maintenanceCharge;	
+			SET rOutBody0.offerProductDetail.creditCard.shortDesc							=rSSProDetNor.creditCard.shortDesc;	
+			SET rOutBody0.offerProductDetail.creditCard.specialCard							=rSSProDetNor.creditCard.specialCard;	
+		   	       
+			SET rOutBody0.offerProductDetail.packageAccount.(XMLNSC.Attribute)name	='packageAccount';
+			SET rOutBody0.offerProductDetail.packageAccount.operationId				=rSSProDetNor.packageAccount.operationId;	
+			SET rOutBody0.offerProductDetail.packageAccount.summaryType.shortDesc	=rSSProDetNor.packageAccount.summaryType.shortDesc;	
+			
+
+			--lista de CUENTAS asociadas  PQ
+			DECLARE rMSOffComAcc REFERENCE TO Environment.Variables.MSOfferComponentAccepted.*:Envelope.*:Body.*:massiveSelectOfferComponentAcceptedResponse.collection;
+			SET indexArray1	=CARDINALITY(rMSAccDetByProId.account[]);
+			SET index1		=1;
+			IF (indexArray1 > 0) THEN
+				SET vAuxChar1	=rSSProDetNor.packageAccount.operationId;
+				SET vAuxChar2	=rMSOffComAcc.offer.productId;
+				IF(vAuxChar1 = vAuxChar2) THEN
+					WHILE(index1 <= indexArray1) DO
+						DECLARE rMSAccDetByProIdAcc REFERENCE TO rMSAccDetByProId.account[index1];
+						CREATE LASTCHILD OF rOutBody0.offerProductDetail.packageAccount.accounts AS rOutBody1 NAME 'account';
+						SET rOutBody1.currency				=rMSAccDetByProIdAcc.currency; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+						SET rOutBody1.isoProduct			=rMSAccDetByProIdAcc.isoProduct; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+						SET rOutBody1.product.hasAgreement	=rMSAccDetByProIdAcc.product.hasAgreement;
+						SET rOutBody1.product.isOptional	=rMSAccDetByProIdAcc.product.isOptional;
+						SET rOutBody1.product.productId		=rMSAccDetByProIdAcc.product.productId;
+						SET rOutBody1.product.shortDesc		=rMSAccDetByProIdAcc.product.shortDesc;
+						
+						SET vAuxChar1 =  rMSAccDetByProIdAcc.isoProduct.mnemonic;
+						IF (vAuxChar1 = 'CURRENT_ACCOUNT') THEN  --TODO . Revisar
+							DECLARE indexArray2 INTEGER CARDINALITY(rMSOffAccByPro.offer[]);
+							DECLARE index2 INTEGER 1;
+							WHILE(index2 <= indexArray2) DO  
+								SET vAuxChar1 = rMSOffAccByPro.offer[index2].productId;
+								IF(vAuxChar1 = '998')THEN
+									SET rOutBody1.checkbookType= rMSOffAccByPro.offer[index2].checkbookType;	--mnemonic/originalCodes/shortDesc/internalValues
+									SET vAuxCheckbookFlag = TRUE;
+								ELSEIF(vAuxChar1 = '999') THEN
+									SET rOutBody1.agreementAmount =rMSOffAccByPro.offer[index2].agreementAmount;
+									SET vAuxAgreementFlag = TRUE;
+								END IF;--vAuxChar1 = '998'
+								SET index2 = index2 + 1;
+							END WHILE; 
+						END IF; --vAuxChar1 = 'CURRENT_ACCOUNT'
+						
+
+						/***************** LISTA DE CUENTAS DE AHORRO CON MONEDAS Y ACCIONES - SOLO SE USA PARA CERTIFICACION NEGATIVA *****************/
+						IF (rMSAccDetByProIdAcc.isoProduct.mnemonic = 'SAVING_ACCOUNT' OR 
+							rMSAccDetByProIdAcc.isoProduct.mnemonic = 'CA_COMMON' OR
+							rMSAccDetByProIdAcc.isoProduct.mnemonic = 'CA_SPECIAL') THEN  --TODO . Revisar
+							CREATE LASTCHILD OF rOutBody00 AS rOutBody11 NAME 'account';
+							SET rOutBody11.currency=rMSAccDetByProIdAcc.currency; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+							SET rOutBody11.customerOperationPermission.customerOperation.actionType.mnemonic = 'Nueva';	
+						END IF;
+						
+						SET index1 = index1 + 1 ;
+					END WHILE; 
+				END IF; --vAuxChar1 =  vAuxChar2
+			END IF; --indexArray1 > 0
+			SET rOutBody0.offerProductDetail.product.(XMLNSC.Attribute)name		='product';
+			SET rOutBody0.offerProductDetail.product.productType.shortDesc		=rSSProDetNor.product.productType.shortDesc;	
+			SET rOutBody0.offerProductDetail.product.shortDesc					=rSSProDetNor.product.shortDesc;	
+			SET rOutBody0.offerProductDetail.product.productId					=rSSProDetNor.product.productId;	
+			
+			SET indexArray1	=CARDINALITY(rMSOffAccByPro.offer[]);
+			SET index1		=1;
+			WHILE(index1 <= indexArray1) DO
+				DECLARE rMSOffAccByProOff REFERENCE TO rMSOffAccByPro.offer[index1];
+				SET vAuxChar1 = rSSProDetNor.key;
+				SET vAuxChar2 = rMSOffAccByProOff.productId;			    	
+				IF(vAuxChar1 = vAuxChar2) THEN
+					SET rOutBody0.cardDbPin				= rMSOffAccByProOff.cardDbPin;
+					SET rOutBody0.creditLimit			= rMSOffAccByProOff.creditLimit;
+					SET rOutBody0.logisticsKitId		= rMSOffAccByProOff.logisticsKitId;
+					SET rOutBody0.offerId				= rMSOffAccByProOff.offerId;
+					SET rOutBody0.percentBonus			= rMSOffAccByProOff.percentBonus;
+					SET rOutBody0.percentCreditLimit	= rMSOffAccByProOff.percentCreditLimit;
+					SET rOutBody0.productEmbossed		= rMSOffAccByProOff.productEmbossed;
+					SET rOutBody0.productId				= rMSOffAccByProOff.productId;
+					SET rOutBody0.termBonusDays			= rMSOffAccByProOff.termBonusDays;
+					SET rOutBody0.campaign				= rMSOffAccByProOff.campaign;
+					SET rOutBody0.description			= rMSOffAccByProOff.description;
+					SET rOutBody0.agreementAmount		= rMSOffAccByProOff.agreementAmount;
+					SET rOutBody0.cardDb.cardLimitType	= rMSOffAccByProOff.cardDb.cardLimitType;
+					SET rOutBody0.checkbookType			= rMSOffAccByProOff.checkbookType; --mnemonic/originalCodes/shortDesc/internalValues
+					
+					SET rOutBody0.packageProduct		= rMSOffAccByProOff.packageProduct; -- copia id de convenio
+					
+					SET rOutBody0.creditCard.methodOfPayment			= rMSOffAccByProOff.creditCard.methodOfPayment;
+					SET rOutBody0.creditCard.nameOnCard					= rMSOffAccByProOff.creditCard.nameOnCard;
+					SET rOutBody0.creditCard.purchaseLimit				= rMSOffAccByProOff.creditCard.purchaseLimit;
+					SET rOutBody0.creditCard.weekClosureDay				= rMSOffAccByProOff.creditCard.weekClosureDay;
+					SET rOutBody0.creditCard.creditCardPaymentMethod	= rMSOffAccByProOff.creditCard.creditCardPaymentMethod; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+					
+					SET rOutBody0.offerPaymentMethod	= rMSOffAccByProOff.offerPaymentMethod; --mnemonic/originalCodes/internalValues
+				  	--Agregado
+				  	SET rOutBody0.status				= rMSOffAccByProOff.status;
+				END IF;
+				SET index1 = index1 +1;
+			END WHILE;
+		END IF ;-- END vProdType ='PQ'
+
+            --Detalle del prestamo			    
+		    IF(vProdType ='PP')THEN  -- PRESTAMO [PP]
+			   CREATE LASTCHILD OF rOutBodyCollection.collection AS rOutBody0 NAME 'offer';       
+			   SET rOutBody0.(XMLNSC.Attribute)name	='accepted';
+		       SET rOutBody0.(XMLNSC.Attribute)type	=vProdType;       
+	   	        --attribute show elements
+		       SET rOutBody0.statusReason.status.longDesc='accepted';
+		       SET rOutBody0.statusReason.stampAdditional= vProdType;   
+		       
+			   	  --LOAN
+			   	  CREATE LASTCHILD OF rOutBody0.offerProductDetail AS rOutBody1 NAME 'loan';
+			   	  SET rOutBody1.account.branch.sBranchId               = rSSLoanDetail.loan.account.branch.sBranchId;
+			   	  SET rOutBody1.account.currency                       = rSSLoanDetail.loan.account.currency ; 
+			   	  SET rOutBody1.account.customerOperationPermission.customerOperation.customer.customerType.customerTypeId = rSSLoanDetail.loan.account.customerOperationPermission.customerOperation.customer.customerType.customerTypeId;
+			   	  SET rOutBody1.account.customerOperationPermission.customerOperation.customer.institution.shortDesc       = rSSLoanDetail.loan.account.customerOperationPermission.customerOperation.customer.institution.shortDesc;
+			   	  SET rOutBody1.account.isoProduct                     = rSSLoanDetail.loan.account.isoProduct;
+			   	  SET rOutBody1.account.operationId                    = rSSLoanDetail.loan.account.operationId;
+			   	  SET rOutBody1.account.subaccount                     = rSSLoanDetail.loan.account.subaccount;			   	  
+			   	  
+			   	  SET rOutBody1.appliesChildSupport                    = rSSLoanDetail.loan.appliesChildSupport;				   	   
+			   	  SET rOutBody1.branch.sBranchId                       = rSSLoanDetail.loan.branch.sBranchId;
+			   	  SET rOutBody1.campaignId                             = rSSLoanDetail.loan.campaignId;
+			   	  SET rOutBody1.childSupportAmount                     = rSSLoanDetail.loan.childSupportAmount;
+			   	  SET rOutBody1.creditAccount.branch.sBranchId         = rSSLoanDetail.loan.creditAccount.branch.sBranchId;
+			   	  SET rOutBody1.creditAccount.bukNumber                = rSSLoanDetail.loan.creditAccount.bukNumber;
+			   	  SET rOutBody1.creditAccount.bukNumberAlias           = rSSLoanDetail.loan.creditAccount.bukNumberAlias;
+			   	  SET rOutBody1.creditAccount.currency                 = rSSLoanDetail.loan.creditAccount.currency;
+			   	  SET rOutBody1.creditAccount.isoProduct               = rSSLoanDetail.loan.creditAccount.isoProduct;
+			   	  SET rOutBody1.creditAccount.operationId              = rSSLoanDetail.loan.creditAccount.operationId;
+			   	  SET rOutBody1.creditAccount.subaccount               = rSSLoanDetail.loan.creditAccount.subaccount;				   	  
+			   	  
+			   	  SET rOutBody1.currencyCode                     = rSSLoanDetail.loan.currencyCode;
+			   	  SET rOutBody1.customerOperationPermission.customerOperation.bantotalOperationId         = rSSLoanDetail.loan.customerOperationPermission.customerOperation.bantotalOperationId;
+			   	  SET rOutBody1.customerOperationPermission.customerOperation.customer.segment.sSegmentId = rSSLoanDetail.loan.customerOperationPermission.customerOperation.customer.segment.sSegmentId;
+			   	  SET rOutBody1.defaultBeneficiaries             = rSSLoanDetail.loan.defaultBeneficiaries;
+			   	  SET rOutBody1.description                      = rSSLoanDetail.loan.description;
+			   	  SET rOutBody1.fundDestiny.fundDestinyId        = rSSLoanDetail.loan.fundDestiny.fundDestinyId;
+			   	  SET rOutBody1.fundDestiny.shortDesc            = rSSLoanDetail.loan.fundDestiny.shortDesc;
+			   	  SET rOutBody1.fundDestinyVatInd                = rSSLoanDetail.loan.fundDestinyVatInd;
+			   	  SET rOutBody1.insuranceVida12Ind               = rSSLoanDetail.loan.insuranceVida12Ind;
+			   	  SET rOutBody1.interestRateSource               = rSSLoanDetail.loan.interestRateSource;
+			   	  SET rOutBody1.interestRateType                 = rSSLoanDetail.loan.interestRateType;
+			   	  SET rOutBody1.lastInstallmentDueDate 			 = rSSLoanDetail.loan.lastInstallmentDueDate ; 
+			   	  SET rOutBody1.lifeInsuranceCompany  			 = rSSLoanDetail.loan.lifeInsuranceCompany; --insuranceCompanyId/shortDesc		   	  
+			   	  SET rOutBody1.loanLine                         = rSSLoanDetail.loan.loanLine;
+			   	  SET rOutBody1.loPrincipalAmountLocal			 = rSSLoanDetail.loan.loPrincipalAmountLocal;
+			   	  
+			   	  SET rOutBody1.officerParameter.amount                  = rSSLoanDetail.loan.officerParameter.amount;
+			   	  SET rOutBody1.officerParameter.comments                = rSSLoanDetail.loan.officerParameter.comments;
+			   	  SET rOutBody1.officerParameter.effectiveRateValue      = rSSLoanDetail.loan.officerParameter.effectiveRateValue;
+			   	  SET rOutBody1.officerParameter.financialCost           = rSSLoanDetail.loan.officerParameter.financialCost;
+			   	  SET rOutBody1.officerParameter.financialCostVat        = rSSLoanDetail.loan.officerParameter.financialCostVat;
+			   	  SET rOutBody1.officerParameter.firstInstallmentDueDate = rSSLoanDetail.loan.officerParameter.firstInstallmentDueDate;
+			   	  SET rOutBody1.officerParameter.installmentAmount       = rSSLoanDetail.loan.officerParameter.installmentAmount;
+			   	  SET rOutBody1.officerParameter.insuranceAmount         = rSSLoanDetail.loan.officerParameter.insuranceAmount;
+			   	  SET rOutBody1.officerParameter.nominalRateValue        = rSSLoanDetail.loan.officerParameter.nominalRateValue;
+			   	  SET rOutBody1.officerParameter.term.termId             = rSSLoanDetail.loan.officerParameter.term.termId;
+			   	  
+			   	  SET rOutBody1.operationId                                    = rSSLoanDetail.loan.operationId;
+			   	  SET rOutBody1.otherFundDestiny                               = rSSLoanDetail.loan.otherFundDestiny;
+			   	  SET rOutBody1.productId                                      = rSSLoanDetail.loan.productId;
+			   	  SET rOutBody1.readjustementParameter.amount                  = rSSLoanDetail.loan.readjustementParameter.amount;
+			   	  SET rOutBody1.readjustementParameter.comments                = rSSLoanDetail.loan.readjustementParameter.comments;
+			   	  SET rOutBody1.readjustementParameter.effectiveRateValue      = rSSLoanDetail.loan.readjustementParameter.effectiveRateValue;
+			   	  SET rOutBody1.readjustementParameter.financialCost           = rSSLoanDetail.loan.readjustementParameter.financialCost;
+			   	  SET rOutBody1.readjustementParameter.financialCostVat        = rSSLoanDetail.loan.readjustementParameter.financialCostVat;
+			   	  SET rOutBody1.readjustementParameter.firstInstallmentDueDate = rSSLoanDetail.loan.readjustementParameter.firstInstallmentDueDate;
+			   	  SET rOutBody1.readjustementParameter.installmentAmount       = rSSLoanDetail.loan.readjustementParameter.installmentAmount;
+			   	  SET rOutBody1.readjustementParameter.insuranceAmount         = rSSLoanDetail.loan.readjustementParameter.insuranceAmount;
+			   	  SET rOutBody1.readjustementParameter.nominalRateValue        = rSSLoanDetail.loan.readjustementParameter.nominalRateValue;
+			   	  SET rOutBody1.readjustementParameter.termId                  = rSSLoanDetail.loan.readjustementParameter.termId;
+			   	  
+			   	  SET rOutBody1.salaryRetention.certificateExpiryDate   = rSSLoanDetail.loan.salaryRetention.certificateExpiryDate;
+			   	  SET rOutBody1.salaryRetention.certificateInd          = rSSLoanDetail.loan.salaryRetention.certificateInd;
+			   	  SET rOutBody1.salaryRetention.certificateIssueDate    = rSSLoanDetail.loan.salaryRetention.certificateIssueDate;
+			   	  SET rOutBody1.salaryRetention.certificateNumber       = rSSLoanDetail.loan.salaryRetention.certificateNumber;
+			   	  SET rOutBody1.salaryRetention.certificateType         = rSSLoanDetail.loan.salaryRetention.certificateType;
+			   	  SET rOutBody1.salaryRetention.fileNumber              = rSSLoanDetail.loan.salaryRetention.fileNumber;
+			   	  SET rOutBody1.salaryRetention.maxAmount               = rSSLoanDetail.loan.salaryRetention.maxAmount;
+			   	  SET rOutBody1.salaryRetention.retentionOrganization.organizationCode = rSSLoanDetail.loan.salaryRetention.retentionOrganization.organizationCode;
+			   	  SET rOutBody1.salaryRetention.retentionOrganization.organizationZone = rSSLoanDetail.loan.salaryRetention.retentionOrganization.organizationZone;
+			   	  SET rOutBody1.salaryRetention.retentionOrganization.organizationName = rSSLoanDetail.loan.salaryRetention.retentionOrganization.organizationName;
+			   	  
+			   	  SET rOutBody1.subOperationId                           = rSSLoanDetail.loan.subOperationId;
+
+			   	  SET rOutBody1.subproduct.mnemonic                      = rSSLoanDetail.loan.subproduct.mnemonic;
+			   	  SET rOutBody1.subproduct.product.isoProduct.mnemonic   = rSSLoanDetail.loan.subproduct.product.isoProduct.mnemonic;
+			   	  SET rOutBody1.subproduct.product.isoProduct.shortDesc  = rSSLoanDetail.loan.subproduct.product.isoProduct.shortDesc;
+			   	  SET rOutBody1.subproduct.product.mnemonic              = rSSLoanDetail.loan.subproduct.product.mnemonic;
+			   	  SET rOutBody1.subproduct.product.productId             = rSSLoanDetail.loan.subproduct.product.productId;
+			   	  SET rOutBody1.subproduct.product.shortDesc             = rSSLoanDetail.loan.subproduct.product.shortDesc;
+			   	  SET rOutBody1.subproduct.shortDesc                     = rSSLoanDetail.loan.subproduct.shortDesc;
+			   	  SET rOutBody1.wageAgreement.account.customerOperationPermission.customerOperation.customer.identificationNumber = rSSLoanDetail.loan.wageAgreement.account.customerOperationPermission.customerOperation.customer.identificationNumber;
+			   	  
+				  SET rOutBody1.allowsPartialCancellation     =  rSSLoanDetail.loan.allowsPartialCancellation;
+				  SET rOutBody1.allowsTotalCancellation       =  rSSLoanDetail.loan.allowsTotalCancellation;
+				  SET rOutBody1.amountInstallment             =  rSSLoanDetail.loan.amountInstallment;
+				  SET rOutBody1.balance                       =  rSSLoanDetail.loan.balance;--UVA
+				  SET rOutBody1.balanceLocal                  =  rSSLoanDetail.loan.balanceLocal;--Pesos
+				  SET rOutBody1.beginDate                     =  rSSLoanDetail.loan.beginDate;
+				  SET rOutBody1.capitalAdjustementDate        =  rSSLoanDetail.loan.capitalAdjustementDate;
+				  SET rOutBody1.capitalTerm                   =  rSSLoanDetail.loan.capitalTerm;
+				  SET rOutBody1.description                   =  rSSLoanDetail.loan.description;
+				  SET rOutBody1.dueCapitalBalance             =  rSSLoanDetail.loan.dueCapitalBalance;--UVA
+				  SET rOutBody1.dueCapitalBalanceLocalCurreny =  rSSLoanDetail.loan.dueCapitalBalanceLocalCurreny;--Pesos
+				  SET rOutBody1.expiryDate                    =  rSSLoanDetail.loan.expiryDate;
+				  SET rOutBody1.goodDescription               =  rSSLoanDetail.loan.goodDescription;
+				  SET rOutBody1.interestRateValue             =  rSSLoanDetail.loan.interestRateValue;
+				  SET rOutBody1.loInsurances                  =  rSSLoanDetail.loan.loInsurances;
+				  SET rOutBody1.loanPaymentMethod             =  rSSLoanDetail.loan.loanPaymentMethod;
+				  SET rOutBody1.nextInstallmentDate           =  rSSLoanDetail.loan.nextInstallmentDate;
+				  SET rOutBody1.nextInstallmentNumber         =  rSSLoanDetail.loan.nextInstallmentNumber;
+				  SET rOutBody1.numberOfOvercomeInstallments  =  rSSLoanDetail.loan.numberOfOvercomeInstallments;
+				  SET rOutBody1.numberOfPaidInstallments      =  rSSLoanDetail.loan.numberOfPaidInstallments;
+				  SET rOutBody1.numberOfUnpaidInstallments    =  rSSLoanDetail.loan.numberOfUnpaidInstallments;
+				  SET rOutBody1.totalCapitalAdjustement       =  rSSLoanDetail.loan.totalCapitalAdjustement;
+				  SET rOutBody1.totalNumberOfInstallments     =  rSSLoanDetail.loan.totalNumberOfInstallments;
+				  SET rOutBody1.wageAgreement.agreementName   =  rSSLoanDetail.loan.wageAgreement.agreementName;
+				  --SET rOutBody1.pureInstallmentAmount 		  =  rSSLoanDetail.loan.pureInstallmentAmount;
+
+				  --SET rOutBody1.dueCapitalBalanceUva		  =  rSSLoanDetail.loan.dueCapitalBalanceUva;
+				 -- SET rOutBody0.offerProductDetail.loan.quotationUva.dateFrom =  rSSLoanDetail.loan.quotationUva.dateFrom;
+				  SET rOutBody1.quotationUva.dateFrom		  =  rSSLoanDetail.loan.quotationUva.dateFrom;
+				  SET rOutBody1.quotationUva.quotFixed		  =  rSSLoanDetail.loan.quotationUva.quotFixed;
+				  --SET rOutBody0.offerProductDetail.loan.quotationUva.quotFixed =  rSSLoanDetail.loan.quotationUva.quotFixed;
+				  --SET rOutBody1.loPrincipalAmountUva		  =  rSSLoanDetail.loan.loPrincipalAmountUva;
+  
+		   	   --LISTA Insurances
+		   	  SET indexArray1	=CARDINALITY(rSSLoanDetail.collection.insurance[]);  
+		   	  SET index1 = 1;  
+		   	  
+		   	       WHILE (index1 <= indexArray1) DO
+		   	       	 CREATE LASTCHILD OF rOutBody0.offerProductDetail.loanInsurances AS rOutBody1 NAME 'insurance';	
+		   	       	 DECLARE rSSLoanProDetIns REFERENCE TO rSSLoanDetail.collection.insurance[index1];   	       	 
+				   	  SET rOutBody1.beneficiary.basicIndividualData.sexCode= rSSLoanProDetIns.beneficiary.basicIndividualData.sexCode;
+				   	  SET rOutBody1.beneficiary.identificationNumber       = rSSLoanProDetIns.beneficiary.identificationNumber;
+				   	  SET rOutBody1.beneficiary.identificationType         = rSSLoanProDetIns.beneficiary.identificationType;
+				   	  
+				   	  SET rOutBody1.customer.basicIndividualData.birthDate = rSSLoanProDetIns.customer.basicIndividualData.birthDate;
+				   	  SET rOutBody1.customer.basicIndividualData.sexCode   = rSSLoanProDetIns.customer.basicIndividualData.sexCode;
+				   	  SET rOutBody1.customer.customerType                  = rSSLoanProDetIns.customer.customerType;
+				   	  SET rOutBody1.customer.firstName1                    = rSSLoanProDetIns.customer.firstName1;
+				   	  SET rOutBody1.customer.identificationNumber          = rSSLoanProDetIns.customer.identificationNumber;
+				   	  SET rOutBody1.customer.identificationType            = rSSLoanProDetIns.customer.identificationType;
+				   	  SET rOutBody1.customer.lastName1                     = rSSLoanProDetIns.customer.lastName1;
+				   	  SET rOutBody1.customerOperationPermission.customerOperation.subproduct.product.productId = rSSLoanProDetIns.customerOperationPermission.customerOperation.subproduct.product.productId;
+				   	  SET rOutBody1.insuranceCode.insuranceCodeId          = rSSLoanProDetIns.insuranceCode.insuranceCodeId;
+				   	  SET rOutBody1.insurancePaymentMethod                 = rSSLoanProDetIns.insurancePaymentMethod;
+				   	  SET rOutBody1.insurancePlan.price                    = rSSLoanProDetIns.insurancePlan.price;
+				   	  SET rOutBody1.insuranceRelationType                  = rSSLoanProDetIns.insuranceRelationType;
+				   	  SET rOutBody1.insuranceType                          = rSSLoanProDetIns.insuranceType;
+				   	  SET rOutBody1.percentage                             = rSSLoanProDetIns.percentage;
+		   	      	
+		   	      	SET index1 = index1 + 1;
+		   	       END WHILE;
+		   	    --LISTA loanCancellation
+		   	  SET indexArray1	=CARDINALITY(rSSLoanDetail.collection.loan[]);  
+		   	  SET index1 = 1;    
+		   	       WHILE (index1 <= indexArray1) DO
+		   	       	CREATE LASTCHILD OF rOutBody0.offerProductDetail.loansToCancel AS rOutBody1 NAME 'loan';
+		   	       	DECLARE rSSLoanProDetail REFERENCE TO rSSLoanDetail.collection.loan[index1];	   	       	 
+				   	  SET rOutBody1.account.branch.sBranchId  = rSSLoanProDetail.account.branch.sBranchId;
+				   	  SET rOutBody1.account.currency          = rSSLoanProDetail.account.currency;
+				   	  SET rOutBody1.account.isoProduct        = rSSLoanProDetail.account.isoProduct;
+				   	  SET rOutBody1.account.operationId       = rSSLoanProDetail.account.operationId;
+				   	  SET rOutBody1.account.subaccount        = rSSLoanProDetail.account.subaccount;
+				   	  SET rOutBody1.accountingLine            = rSSLoanProDetail.accountingLine;
+				   	  SET rOutBody1.action                    = rSSLoanProDetail.action;
+				   	  SET rOutBody1.amountInstallment         = rSSLoanProDetail.amountInstallment;
+				   	  SET rOutBody1.bonusExpensesAmount       = rSSLoanProDetail.bonusExpensesAmount;
+				   	  SET rOutBody1.bonusExpensesComments     = rSSLoanProDetail.bonusExpensesComments;
+				   	  SET rOutBody1.bonusExpensesInd          = rSSLoanProDetail.bonusExpensesInd;
+				   	  SET rOutBody1.branch.sBranchId          = rSSLoanProDetail.branch.sBranchId;
+				   	  SET rOutBody1.cancellationAmount        = rSSLoanProDetail.cancellationAmount;   	  
+				   	  SET rOutBody1.cancellationCommission    = rSSLoanProDetail.cancellationCommission;
+				   	  SET rOutBody1.cancellationInstallmentQuantity = rSSLoanProDetail.cancellationInstallmentQuantity;
+				   	  SET rOutBody1.cancellationTerm                = rSSLoanProDetail.cancellationTerm;
+				   	  SET rOutBody1.currencyCode                    = rSSLoanProDetail.currencyCode;
+				   	  SET rOutBody1.customerOperationPermission.customerOperation.operationId   = rSSLoanProDetail.customerOperationPermission.customerOperation.operationId;
+				   	  SET rOutBody1.customerOperationPermission.customerOperation.branch.sBranchId    = rSSLoanProDetail.customerOperationPermission.customerOperation.branch.sBranchId;
+				   	  SET rOutBody1.customerOperationPermission.customerOperation.customerOperationId = rSSLoanProDetail.customerOperationPermission.customerOperation.customerOperationId;
+				   	  SET rOutBody1.customerOperationPermission.customerOperation.isoProduct          = rSSLoanProDetail.customerOperationPermission.customerOperation.isoProduct;
+				   	  SET rOutBody1.description  = rSSLoanProDetail.description;
+				   	  SET rOutBody1.dueCapitalBalance  = rSSLoanProDetail.dueCapitalBalance;
+				   	  SET rOutBody1.interestAmount  = rSSLoanProDetail.interestAmount;
+				   	  SET rOutBody1.loInsurances  = rSSLoanProDetail.loInsurances;
+				   	  SET rOutBody1.loanCancellationType  = rSSLoanProDetail.loanCancellationType;
+				   	  SET rOutBody1.loanLine              = rSSLoanProDetail.loanLine;
+				   	  SET rOutBody1.operationId           = rSSLoanProDetail.operationId;
+				   	  SET rOutBody1.productId             = rSSLoanProDetail.productId;
+				   	  SET rOutBody1.promissoryNoteInd     = rSSLoanProDetail.promissoryNoteInd;
+				   	  SET rOutBody1.status		          = rSSLoanProDetail.status;	  
+				   	  SET rOutBody1.subOperationId        = rSSLoanProDetail.subOperationId;
+				   	  SET rOutBody1.subproduct.mnemonic   = rSSLoanProDetail.subproduct.mnemonic;
+				   	  SET rOutBody1.subproduct.product.isoProduct    = rSSLoanProDetail.subproduct.product.isoProduct;
+				   	  SET rOutBody1.taxAmount             = rSSLoanProDetail.taxAmount;
+				   	  SET rOutBody1.totalOperationAmount  = rSSLoanProDetail.totalOperationAmount;
+				   	      
+				   	        SET index1 = index1 + 1;
+		   	      END WHILE;
+		   	      
+		   	      SET indexArray1	=CARDINALITY(rMSOffAccByPro.offer[]);
+			SET index1		=1;
+			WHILE(index1 <= indexArray1) DO
+				DECLARE rMSOffAccByProOff REFERENCE TO rMSOffAccByPro.offer[index1];
+				SET vAuxChar1 = rSSProDetNor.key;
+				SET vAuxChar2 = rMSOffAccByProOff.productId;			    	
+				IF(vAuxChar1 = vAuxChar2) THEN
+					SET rOutBody0.cardDbPin				= rMSOffAccByProOff.cardDbPin;
+					SET rOutBody0.creditLimit			= rMSOffAccByProOff.creditLimit;
+					SET rOutBody0.logisticsKitId		= rMSOffAccByProOff.logisticsKitId;
+					SET rOutBody0.offerId				= rMSOffAccByProOff.offerId;
+					SET rOutBody0.percentBonus			= rMSOffAccByProOff.percentBonus;
+					SET rOutBody0.percentCreditLimit	= rMSOffAccByProOff.percentCreditLimit;
+					SET rOutBody0.productEmbossed		= rMSOffAccByProOff.productEmbossed;
+					SET rOutBody0.productId				= rMSOffAccByProOff.productId;
+					SET rOutBody0.termBonusDays			= rMSOffAccByProOff.termBonusDays;
+					SET rOutBody0.campaign				= rMSOffAccByProOff.campaign;
+					SET rOutBody0.description			= rMSOffAccByProOff.description;
+					SET rOutBody0.agreementAmount		= rMSOffAccByProOff.agreementAmount;
+					SET rOutBody0.cardDb.cardLimitType	= rMSOffAccByProOff.cardDb.cardLimitType;
+					SET rOutBody0.checkbookType			= rMSOffAccByProOff.checkbookType; 
+					
+					SET rOutBody0.creditCard.methodOfPayment			= rMSOffAccByProOff.creditCard.methodOfPayment;
+					SET rOutBody0.creditCard.nameOnCard					= rMSOffAccByProOff.creditCard.nameOnCard;
+					SET rOutBody0.creditCard.purchaseLimit				= rMSOffAccByProOff.creditCard.purchaseLimit;
+					SET rOutBody0.creditCard.weekClosureDay				= rMSOffAccByProOff.creditCard.weekClosureDay;
+					SET rOutBody0.creditCard.creditCardPaymentMethod	= rMSOffAccByProOff.creditCard.creditCardPaymentMethod;
+					
+					SET rOutBody0.offerPaymentMethod	= rMSOffAccByProOff.offerPaymentMethod; 
+					SET rOutBody0.status				= rMSOffAccByProOff.status; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+				  		       
+			       --Si el estado del PP es rechazado, busca el motivo en log
+			       IF(rMSOffAccByProOff.status.mnemonic = 'REJECTED') THEN
+						SET Environment.Variables.Temp.msProcedureLogByProcedure=
+							THE(SELECT logCol	
+								FROM rMSProcedureLogByProcedure.collection[] AS logCol
+								WHERE logCol.(XMLNSC.Attribute)name='procedureLogs');
+								
+						SET Environment.Variables.Temp.procedureLog = 
+							THE(SELECT logCol	
+								FROM Environment.Variables.Temp.msProcedureLogByProcedure.procedureLog[] AS logCol
+								WHERE logCol.procedureSource.mnemonic = 'CHANNEL'
+								  AND logCol.procedure.statusReason.sStatusReasonId = '9998'
+								  AND logCol.procedureTask.taskStatus.mnemonic = 'ERROR');
+											
+						SET rOutBody0.status.stampAdditional				=  Environment.Variables.Temp.procedureLog.comment ;
+						
+						SET Environment.Variables.Temp.msProcedureLogByProcedure = NULL;
+						SET Environment.Variables.Temp.procedureLog = NULL;
+						END IF; --rMSOffAccByProOff.status.mnemonic = 'REJECTED'
+				  					  	
+				END IF; --(vAuxChar1 = vAuxChar2)
+				SET index1 = index1 +1;
+			END WHILE;
+		
+				   	      
+      	SET rOutBody0.offerProductDetail.product.(XMLNSC.Attribute)name		='product';
+		SET rOutBody0.offerProductDetail.product.productType.shortDesc		=rSSProDetNor.product.productType.shortDesc;	
+
+
+		SET rOutBody0.offerProductDetail.product.shortDesc					=rSSProDetNor.product.shortDesc;	
+--		SET rOutBody0.offerProductDetail.product.shortDesc					=rSSOffDescForLoan.offer.description;	
+		SET rOutBody0.offerProductDetail.product.productId					=rSSProDetNor.product.productId;			   	      
+		
+		END IF;--FIN Detalle del prestamo
+
+		IF (vProdType='TD') THEN  -- TARJETA DEBITO [TD]
+			CREATE LASTCHILD OF rOutBodyCollection.collection AS rOutBody0 NAME 'offer';
+			
+			SET rOutBody0.(XMLNSC.Attribute)name	='accepted';
+			SET rOutBody0.(XMLNSC.Attribute)type	=vProdType;
+			 --attribute show elements
+			SET rOutBody0.statusReason.status.longDesc='accepted';
+			SET rOutBody0.statusReason.stampAdditional= vProdType;
+			
+			SET rOutBody0.offerProductDetail.account.(XMLNSC.Attribute)name		='account';
+			SET rOutBody0.offerProductDetail.account.totalAgreements			=rSSProDetNor.account.totalAgreements;
+			
+			SET rOutBody0.offerProductDetail.creditCard.(XMLNSC.Attribute)name	='creditCard';	
+			SET rOutBody0.offerProductDetail.creditCard.affinityGroup			=rSSProDetNor.creditCard.affinityGroup;	
+			SET rOutBody0.offerProductDetail.creditCard.authorizationModel		=rSSProDetNor.creditCard.authorizationModel;	
+			SET rOutBody0.offerProductDetail.creditCard.activationDate			=rSSProDetNor.creditCard.activationDate;
+			 
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount					=rSSProDetNor.creditCard.creditCardAccount;				   	     
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount.brand				=rSSProDetNor.creditCard.creditCardAccount.brand;	--mnemonic/originalCodes/shortDesc				   	       
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount.creditCardType	=rSSProDetNor.creditCard.creditCardAccount.creditCardType;	--mnemonic/originalCodes/shortDesc
+					   	     
+			SET rOutBody0.offerProductDetail.creditCard.creditCardCategory	=rSSProDetNor.creditCard.creditCardCategory;	--mnemonic/originalCodes/shortDesc					   	       
+			SET rOutBody0.offerProductDetail.creditCard.installmentCharge	=rSSProDetNor.creditCard.installmentCharge;
+			SET rOutBody0.offerProductDetail.creditCard.maintenanceCharge	=rSSProDetNor.creditCard.maintenanceCharge;	
+			SET rOutBody0.offerProductDetail.creditCard.shortDesc			=rSSProDetNor.creditCard.shortDesc;	
+			SET rOutBody0.offerProductDetail.creditCard.specialCard			=rSSProDetNor.creditCard.specialCard;	
+			 
+			SET rOutBody0.offerProductDetail.packageAccount.(XMLNSC.Attribute)name	='packageAccount';
+			SET rOutBody0.offerProductDetail.packageAccount.operationId				=rSSProDetNor.packageAccount.operationId;	
+			SET rOutBody0.offerProductDetail.packageAccount.summaryType.shortDesc	=rSSProDetNor.packageAccount.summaryType.shortDesc;	
+			 
+			SET rOutBody0.offerProductDetail.product.(XMLNSC.Attribute)name		='product';
+			SET rOutBody0.offerProductDetail.product.productType.shortDesc		=rSSProDetNor.product.productType.shortDesc;	
+			SET rOutBody0.offerProductDetail.product.shortDesc					=rSSProDetNor.product.shortDesc;	
+			SET rOutBody0.offerProductDetail.product.productId					=rSSProDetNor.product.productId;
+
+			SET indexArray1	=CARDINALITY(rMSCarProAddByPro.card[]);
+			SET index1		=1;
+			WHILE(index1 <= indexArray1) DO      -- TARJETA DEBITO [TD] Adicionales
+				SET rInBody = rMSCarProAddByPro.card[index1];
+			--	SET rInBody2 = rMSCreCarAddByAcc.creditCard[index1];
+				SET vAuxChar1 = rSSProDetNor.product.productType.shortDesc;
+				SET vAuxChar2 =  rInBody.product.shortDesc;
+				IF(STARTSWITH( vAuxChar1, vAuxChar2 )) THEN
+					CREATE LASTCHILD OF rOutBody0.offerProductDetail.additionals AS rOutBody1 NAME 'card';
+					
+--					--ActionType	
+--					SET Environment.Variables.Temp.ActionType = 
+--					THE(SELECT offersCol.actionType	
+--						FROM rMSCusOpeByPro.customerOperation[] AS offersCol
+--						WHERE offersCol.creditCardAccount = rInBody2.creditCardAccount.account.operationId); --Tarjeta
+--						
+--					SET rOutBody1.customerOperation	=Environment.Variables.Temp.ActionType;		
+--					--Fin ActionType
+					
+					
+					
+					SET rOutBody1.cardLimitType	=rInBody.cardLimitType; --mnemonic/shortDesc
+												
+					SET rOutBody1.customer.basicIndividualData.sexCode	=rInBody.customer.basicIndividualData.sexCode; --mnemonic/originalCodes/shortDesc/internalValues
+					
+					SET rOutBody1.customer.firstName1			=rInBody.customer.firstName1;
+					SET rOutBody1.customer.identificationNumber	=rInBody.customer.identificationNumber;							
+					SET rOutBody1.customer.identificationType	=rInBody.customer.identificationType;--mnemonic/originalCodes/shortDesc/internalValues	
+										
+					SET rOutBody1.product.productType	=rInBody.product.productType; --mnemonic/originalCodes/internalValues
+					SET rOutBody1.product.shortDesc		=rInBody.product.shortDesc;
+					
+					IF rInBody.product.productId <> '' THEN  --Si tiene nro de tarjeta
+						SET rOutBody1.customerOperation.actionType.mnemonic = 'Vincular';
+					ELSE
+						SET rOutBody1.customerOperation.actionType.mnemonic = 'Alta';
+					END IF;
+
+
+					
+					
+					SET rOutBody1.nameOnCard	=rInBody.nameOnCard;
+					SET rOutBody1.purchaseLimit	=rInBody.cardLimitType.shortDesc;
+				END IF;	
+				SET index1 = index1 + 1;
+			END WHILE;	    
+	        
+			SET indexArray1	=CARDINALITY(rMSOffAccByPro.offer[]);
+			SET index1		=1;
+			WHILE(index1 <= indexArray1) DO
+				DECLARE rMSOffAccByProOff REFERENCE TO rMSOffAccByPro.offer[index1];
+			
+				IF(rSSProDetNor.key = rMSOffAccByProOff.productId) THEN
+					SET rOutBody0.cardDbPin				=rMSOffAccByProOff.cardDbPin;
+					SET rOutBody0.creditLimit			=COALESCE (  --Si creditLimit no tiene valor de transformacion, retorna el original
+															THE (SELECT ITEM rList.maxValue FROM rMSLimCarDb.limit[] AS rList WHERE LTRIM(rList.limitId)=LTRIM(rMSOffAccByProOff.creditLimit) ), --Transforma el Id por su descripcion
+															rMSOffAccByProOff.creditLimit); 
+					SET rOutBody0.logisticsKitId		=rMSOffAccByProOff.logisticsKitId;
+					SET rOutBody0.offerId				=rMSOffAccByProOff.offerId;
+					SET rOutBody0.percentBonus			=rMSOffAccByProOff.percentBonus;
+					SET rOutBody0.percentCreditLimit	=rMSOffAccByProOff.percentCreditLimit;
+					SET rOutBody0.productEmbossed		=rMSOffAccByProOff.productEmbossed;
+					SET rOutBody0.productId				=rMSOffAccByProOff.productId;
+					SET rOutBody0.termBonusDays			=rMSOffAccByProOff.termBonusDays;
+					SET rOutBody0.campaign				=rMSOffAccByProOff.campaign;
+					SET rOutBody0.description			=rMSOffAccByProOff.description;
+					SET rOutBody0.agreementAmount		=rMSOffAccByProOff.agreementAmount;						
+					SET rOutBody0.cardDb.cardLimitType	=rMSOffAccByProOff.cardDb.cardLimitType;						
+					SET rOutBody0.checkbookType			=rMSOffAccByProOff.checkbookType; --mnemonic/originalCodes/internalValues	
+										
+					SET rOutBody0.creditCard.methodOfPayment			=rMSOffAccByProOff.creditCard.methodOfPayment;
+					SET rOutBody0.creditCard.nameOnCard					=rMSOffAccByProOff.creditCard.nameOnCard;
+					SET rOutBody0.creditCard.purchaseLimit				=rMSOffAccByProOff.creditCard.purchaseLimit;
+					SET rOutBody0.creditCard.weekClosureDay				=rMSOffAccByProOff.creditCard.weekClosureDay;
+					SET rOutBody0.creditCard.creditCardPaymentMethod	=rMSOffAccByProOff.creditCard.creditCardPaymentMethod; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+										
+					SET rOutBody0.offerPaymentMethod	=rMSOffAccByProOff.offerPaymentMethod; --mnemonic/originalCodes/internalValues			  
+					SET rOutBody0.status				=rMSOffAccByProOff.status; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+				END IF;
+				SET index1 = index1 +1;				  
+			END WHILE;
+		END IF;
+		
+		IF(vProdType='TC')THEN  -- TARJETA CREDITO [TC]
+			CREATE LASTCHILD OF rOutBodyCollection.collection AS rOutBody0 NAME 'offer';
+			--datos de TC
+			SET rOutBody0.(XMLNSC.Attribute)name	='accepted';
+			SET rOutBody0.(XMLNSC.Attribute)type	=vProdType;
+			 --attribute show elements
+			SET rOutBody0.statusReason.status.longDesc	='accepted';
+			SET rOutBody0.statusReason.stampAdditional	=vProdType;
+			
+			SET rOutBody0.offerProductDetail.account.(XMLNSC.Attribute)name	='account';
+			SET rOutBody0.offerProductDetail.account.totalAgreements		=rSSProDetNor.account.totalAgreements;
+				
+			SET rOutBody0.offerProductDetail.creditCard.(XMLNSC.Attribute)name	='creditCard';	
+			SET rOutBody0.offerProductDetail.creditCard.affinityGroup			=rSSProDetNor.creditCard.affinityGroup;	
+			SET rOutBody0.offerProductDetail.creditCard.authorizationModel		=rSSProDetNor.creditCard.authorizationModel;	
+			SET rOutBody0.offerProductDetail.creditCard.activationDate			=rSSProDetNor.creditCard.activationDate;
+			
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount.brand=rSSProDetNor.creditCard.creditCardAccount.brand;	--mnemonic/originalCodes/shortDesc						  
+			SET rOutBody0.offerProductDetail.creditCard.creditCardAccount.creditCardType=rSSProDetNor.creditCard.creditCardAccount.creditCardType;	--mnemonic/originalCodes/shortDesc						 
+			SET rOutBody0.offerProductDetail.creditCard.creditCardCategory=rSSProDetNor.creditCard.creditCardCategory;	--mnemonic/originalCodes/shortDesc	
+			SET rOutBody0.offerProductDetail.creditCard.installmentCharge=rSSProDetNor.creditCard.installmentCharge;
+			SET rOutBody0.offerProductDetail.creditCard.maintenanceCharge=rSSProDetNor.creditCard.maintenanceCharge;	
+			SET rOutBody0.offerProductDetail.creditCard.shortDesc=rSSProDetNor.creditCard.shortDesc;	
+			SET rOutBody0.offerProductDetail.creditCard.specialCard=rSSProDetNor.creditCard.specialCard;	
+			 
+			SET rOutBody0.offerProductDetail.packageAccount.(XMLNSC.Attribute)name	='packageAccount';
+			SET rOutBody0.offerProductDetail.packageAccount.operationId				=rSSProDetNor.packageAccount.operationId;	
+			SET rOutBody0.offerProductDetail.packageAccount.summaryType.shortDesc	=rSSProDetNor.packageAccount.summaryType.shortDesc;	
+			 
+			SET rOutBody0.offerProductDetail.product.(XMLNSC.Attribute)name	='product';
+			SET rOutBody0.offerProductDetail.product.productType.shortDesc	=rSSProDetNor.product.productType.shortDesc;	
+			SET rOutBody0.offerProductDetail.product.shortDesc				=rSSProDetNor.product.shortDesc;	
+			SET rOutBody0.offerProductDetail.product.productId				=rSSProDetNor.product.productId;	
+			 
+			SET indexArray1	=CARDINALITY(rMSCarProAddByPro.card[]);
+			SET index1		=1;
+			WHILE(index1 <= indexArray1) DO   -- TARJETA CREDITO [TC] Adicionales
+				SET rInBody		=rMSCarProAddByPro.card[index1];
+				--DECLARE rInBody2 REFERENCE TO rMSCreCarAddByAcc.creditCard[index1];
+				SET vAuxChar1	=rSSProDetNor.product.shortDesc;
+				SET vAuxChar2	=rInBody.product.shortDesc; -- TODO: Sin productType.shortDesc????
+				IF(STARTSWITH( vAuxChar1, vAuxChar2 )) THEN
+					CREATE LASTCHILD OF rOutBody0.offerProductDetail.additionals AS rOutBody1 NAME 'card';
+					
+					--ActionType	
+--					SET Environment.Variables.Temp.ActionType = 
+--					THE(SELECT offersCol.actionType	
+--						FROM rMSCusOpeByPro.customerOperation[] AS offersCol
+--						WHERE offersCol.creditCardAccount = rInBody2.creditCardAccount.account.operationId); --Tarjeta
+--						
+--					SET rOutBody1.customerOperation	=Environment.Variables.Temp.ActionType;		
+					--Fin ActionType
+
+					SET rOutBody1.cardLimitType	=rInBody.cardLimitType;--mnemonic/shortDesc
+					
+					SET rOutBody1.customer.basicIndividualData.sexCode	=rInBody.customer.basicIndividualData.sexCode;	--mnemonic/originalCodes/shortDesc/internalValues	
+
+					SET rOutBody1.customer.firstName1			=rInBody.customer.firstName1;
+					SET rOutBody1.customer.identificationNumber	=rInBody.customer.identificationNumber;					 
+					SET rOutBody1.customer.identificationType	=rInBody.customer.identificationType;	--mnemonic/originalCodes/shortDesc/internalValues
+													 
+					SET rOutBody1.product.productType	=rInBody.product.productType;	--mnemonic/originalCodes/internalValues	
+					SET rOutBody1.product.shortDesc		=rInBody.product.shortDesc;						 
+					SET rOutBody1.nameOnCard			=rInBody.nameOnCard;
+					SET rOutBody1.purchaseLimit			=rInBody.cardLimitType.shortDesc;
+				     
+				END IF;
+				SET index1 = index1 + 1;
+			
+			END WHILE;
+			
+			SET indexArray1	=CARDINALITY(rMSOffAccByPro.offer[]);
+			SET index1		=1;
+			WHILE(index1 <= indexArray1) DO
+				DECLARE rMSOffAccByProOff REFERENCE TO rMSOffAccByPro.offer[index1];
+				IF(rSSProDetNor.key = rMSOffAccByProOff.productId) THEN
+					SET rOutBody0.cardDbPin				=rMSOffAccByProOff.cardDbPin;
+					SET rOutBody0.creditLimit			=rMSOffAccByProOff.creditLimit;
+					SET rOutBody0.logisticsKitId		=rMSOffAccByProOff.logisticsKitId;
+					SET rOutBody0.offerId				=rMSOffAccByProOff.offerId;
+					SET rOutBody0.percentBonus			=rMSOffAccByProOff.percentBonus;
+					SET rOutBody0.percentCreditLimit	=rMSOffAccByProOff.percentCreditLimit;
+					SET rOutBody0.productEmbossed		=rMSOffAccByProOff.productEmbossed;
+					SET rOutBody0.productId				=rMSOffAccByProOff.productId;
+					SET rOutBody0.termBonusDays			=rMSOffAccByProOff.termBonusDays;
+					SET rOutBody0.campaign				=rMSOffAccByProOff.campaign;
+					SET rOutBody0.description			=rMSOffAccByProOff.description;
+					SET rOutBody0.agreementAmount		=rMSOffAccByProOff.agreementAmount;
+					
+					SET rOutBody0.cardDb.cardLimitType	=rMSOffAccByProOff.cardDb.cardLimitType;
+					
+					SET rOutBody0.checkbookType	=rMSOffAccByProOff.checkbookType;	--mnemonic/originalCodes/internalValues
+					
+					SET rOutBody0.creditCard.methodOfPayment			=rMSOffAccByProOff.creditCard.methodOfPayment;
+					SET rOutBody0.creditCard.nameOnCard					=rMSOffAccByProOff.creditCard.nameOnCard;
+					SET rOutBody0.creditCard.purchaseLimit				=rMSOffAccByProOff.creditCard.purchaseLimit;
+					SET rOutBody0.creditCard.weekClosureDay				=rMSOffAccByProOff.creditCard.weekClosureDay;
+					SET rOutBody0.creditCard.creditCardPaymentMethod	=rMSOffAccByProOff.creditCard.creditCardPaymentMethod;	--mnemonic/originalCodes/shortDesc/internalValues/longDesc
+					
+					SET rOutBody0.offerPaymentMethod		=rMSOffAccByProOff.offerPaymentMethod;--mnemonic/originalCodes/internalValues
+					SET rOutBody0.status					=rMSOffAccByProOff.status; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+					SET rOutBody0.insuranceOffer			=rMSOffAccByProOff.insurances.insurance.insuranceCompany.shortDesc;
+					
+					
+					DECLARE indexInsuranceCompanys INTEGER 1;
+					DECLARE countInsuranceCompanys INTEGER CARDINALITY (rMSInsuranceCompanyForCreditCard.collection.insuranceCompany[]);
+					
+					--Se arma cada invocacion por separado para ejecutar de una por vez.
+					WHILE (indexInsuranceCompanys <= countInsuranceCompanys) DO
+							DECLARE rMSInsComForCreCar REFERENCE TO rMSInsuranceCompanyForCreditCard.collection.insuranceCompany[indexInsuranceCompanys];
+							
+							IF (rMSOffAccByProOff.insurances.insurance.insuranceCompany.shortDesc = rMSInsComForCreCar.originalCodes) THEN
+								SET rOutBody0.insuranceOfferCompanyName	= rMSInsComForCreCar.shortDesc;
+							END IF;
+							
+						SET indexInsuranceCompanys = indexInsuranceCompanys + 1;
+					
+					END WHILE;
+					
+					
+				END IF;
+				SET index1 = index1 +1;				  
+			END WHILE;		     
+		END IF; --vProdType='TC'
+		
+		SET index0 = index0 +1;				  
+	END WHILE;
+ ------  -- SEGUROS -------------------------------------------------------------------------------------------------------------
+		SET indexArray0 = CARDINALITY(rMSInsPer.insurance[]);
+	SET index0 = 1;
+	IF (indexArray0 > 0) THEN 
+		CREATE LASTCHILD OF rOutBodyCollection.collection AS rOutBody0 NAME 'offer';
+		
+		SET rOutBody0.(XMLNSC.Attribute)name='accepted';
+		SET rOutBody0.(XMLNSC.Attribute)type= 'insurance';
+
+		SET rOutBody0.statusReason.status.longDesc	='accepted';
+		SET rOutBody0.statusReason.stampAdditional	='insurance';
+		WHILE(index0 <= indexArray0) DO
+			CREATE LASTCHILD OF rOutBody0.insurances AS rOutBody1 NAME 'insurance';
+			SET rInBody = rMSInsPer.insurance[index0];
+			
+			SET rOutBody1.customer.basicIndividualData.birthDate	=rInBody.customer.basicIndividualData.birthDate;
+			SET rOutBody1.customer.basicIndividualData.sexCode		=rInBody.customer.basicIndividualData.sexCode; --mnemonic/originalCodes/shortDesc/internalValues
+			
+			SET rOutBody1.customer.identificationNumber	=rInBody.customer.identificationNumber;
+			SET rOutBody1.customer.identificationType	=rInBody.customer.identificationType; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+			
+			SET rOutBody1.insuranceRelationType	=rInBody.insuranceRelationType; --mnemonic/originalCodes/shortDesc/internalValues			
+			SET rOutBody1.percentage			=rInBody.percentage;
+			
+			SET rOutBody1.customerOperationPermission.customerOperation.subproduct.product.productId	=rInBody.customerOperationPermission.customerOperation.subproduct.product.productId;	
+			SET rOutBody1.insuranceCode.insuranceCodeId	=rInBody.insuranceCode.insuranceCodeId;		
+			SET rOutBody1.insurancePaymentMethod		=rInBody.insurancePaymentMethod; --mnemonic/originalCodes/shortDesc/internalValues			
+			SET rOutBody1.insurancePlan.price			=rInBody.insurancePlan.price;
+					
+			SET rOutBody1.beneficiary.firstName1					=rInBody.customer.firstName1;
+			SET rOutBody1.beneficiary.lastName1						=rInBody.customer.lastName1;			
+			SET rOutBody1.beneficiary.basicIndividualData.sexCode	=rInBody.beneficiary.basicIndividualData.sexCode; --mnemonic/originalCodes/internalValues
+			SET rOutBody1.beneficiary.identificationNumber			=rInBody.beneficiary.identificationNumber;
+			SET rOutBody1.beneficiary.identificationType			=rInBody.beneficiary.identificationType; --mnemonic/originalCodes/internalValues
+			
+			SET rOutBody1.insuranceType	=rInBody.insuranceType; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+									
+			SET index0 = index0 +1;		   
+		END WHILE;
+ 	END IF;
+         
+	------  -- INICIO Lista de Productos Origen [EXISTENTES] ------------------------------------------------------------------------------------------------------------
+	--lista de CUENTAS aceptados
+	SET indexArray0	=CARDINALITY(rMSCusOpeByPro.customerOperation[]);
+	SET index0		=1;	   	     
+	IF(indexArray0 > 0)THEN		
+	/******only CreditCards from CustomeOperations******/
+	SET Environment.Variables.Temp.CustomerOperationCreditCards=
+		THE(SELECT offersCol	
+			FROM rMSCusOper.collection[] AS offersCol
+			WHERE offersCol.(XMLNSC.Attribute)name='creditCards');
+	
+		WHILE (index0 <= indexArray0) DO
+			SET rInBody = rMSCusOpeByPro.customerOperation[index0];
+			DECLARE vProductType CHARACTER rInBody.subproduct.product.productType.mnemonic;
+			IF(vProductType is not null)THEN 
+				CREATE LASTCHILD OF rOutBodyCollection.collection AS rOutBody0 NAME 'offer';	 
+				IF (vProductType <> 'VI' AND vProductType <> 'MA' AND vProductType <> 'AM')  THEN
+					SET vProductType='CA'; 
+				END IF;
+				
+					SET rOutBody0.(XMLNSC.Attribute)name=	'existing';
+					SET rOutBody0.(XMLNSC.Attribute)type	=vProductType;
+					
+					 --attribute show elements
+					SET rOutBody0.statusReason.status.longDesc	='existing';
+					SET rOutBody0.statusReason.stampAdditional	=vProductType;
+					
+					
+					SET rOutBody0.offerProductDetail.packageAccount.(XMLNSC.Attribute)name	='packageAccount';
+					CREATE LASTCHILD OF rOutBody0.offerProductDetail.packageAccount.accounts AS rOutBody1 NAME 'account';	
+										
+					IF (rInBody.isoProduct.shortDesc='CC') AND (NOT vAuxCheckbookFlag) THEN --Si es CC y la chequera no es una oferta aceptada
+						SET Environment.Variables.Temp.Checkbook = 
+						THE(SELECT offersCol
+							FROM rMSOffAccByPro.offer[] AS offersCol
+							WHERE offersCol.productId = '998'); --Tarjeta
+	
+						SET rOutBody1.checkbookType= Environment.Variables.Temp.Checkbook.checkbookType;	--mnemonic/originalCodes/shortDesc/internalValues					
+						SET rOutBody0.checkbookType= Environment.Variables.Temp.Checkbook.checkbookType; 
+						
+					END IF; --IF NOT vAuxCheckbookFlag
+				
+					
+					IF (rInBody.isoProduct.shortDesc='CC') AND (NOT vAuxAgreementFlag) THEN --Si es CC y la cta sueldo no es una oferta aceptada						
+						SET Environment.Variables.Temp.Agreement = 
+						THE(SELECT offersCol
+							FROM rMSOffAccByPro.offer[] AS offersCol
+							WHERE offersCol.productId = '999'); --Agreement
+	
+						SET rOutBody1.agreementAmount= Environment.Variables.Temp.Agreement.agreementAmount;	--mnemonic/originalCodes/shortDesc/internalValues					
+						
+					END IF; --IF NOT vAuxAgreementFlag
+					
+					CREATE LASTCHILD OF rOutBody0 AS rOutBody1 NAME 'customerOperation' ;
+					
+					SET rOutBody1.actionType		  	=rInBody.actionType;					    
+					SET rOutBody1.bantotalOperationId	=rInBody.bantotalOperationId;
+					SET rOutBody1.branch.branchId		=rInBody.branch.sBranchId;
+					SET rOutBody1.currency				=rInBody.currency;	
+					
+					SET rOutBody1.customer.basicIndividualData.sexCode	=rInBody.customer.basicIndividualData.sexCode;	    
+					SET rOutBody1.customer.identificationNumber			=rInBody.customer.identificationNumber;
+					SET rOutBody1.customer.identificationType			=rInBody.customer.identificationType;	
+	
+					SET rOutBody1.denomination			=rSSProDes.packageProduct.customerOperationPermission.customerOperation.denomination;		
+					SET vAuxHolderFlag = rInBody.holderFlag;	
+						    
+					SET rOutBody1.holderFlag			=rInBody.holderFlag;				    
+					SET rOutBody1.isoProduct			=rInBody.isoProduct;				    
+					SET rOutBody1.operationId			=rInBody.operationId;
+					SET rOutBody1.packageId				=rInBody.packageId;
+					SET rOutBody1.sequence				=rInBody.sequence;
+					SET rOutBody1.subaccount			=rInBody.subaccount;
+					SET rOutBody1.bantotalOperationId	=rInBody.bantotalOperationId;
+					SET rOutBody1.creditCardAccount		=rInBody.creditCardAccount;
+					SET rOutBody1.customerOperationId	=rInBody.customerOperationId;
+					
+					SET rOutBody1.subproduct.product.productType	=rInBody.subproduct.product.productType;
+					
+					
+					IF rInBody.packageChangeType.mnemonic ='DOWNGRADE' THEN
+						SET rOutBody0.downgrade	=true;
+					ELSEIF rInBody.packageChangeType.mnemonic ='UPGRADE' THEN
+						SET rOutBody0.downgrade	=false;		
+					END IF;
+					
+					
+					/***************** LISTA DE CUENTAS DE AHORRO CON MONEDAS Y ACCIONES - SOLO SE USA PARA CERTIFICACION NEGATIVA *****************/
+					IF ((rInBody.isoProduct.mnemonic = 'SAVING_ACCOUNT' OR  
+						 rInBody.isoProduct.mnemonic = 'CA_COMMON' OR
+						 rInBody.isoProduct.mnemonic = 'CA_SPECIAL') AND 
+						 vProductType='CA') THEN  
+						CREATE LASTCHILD OF rOutBody00 AS rOutBody11 NAME 'account';
+						SET rOutBody11.currency=rInBody.currency; --mnemonic/originalCodes/shortDesc/internalValues/longDesc
+						SET rOutBody11.customerOperationPermission.customerOperation.actionType = rInBody.actionType;	
+					END IF;
+					
+					
+					/***********MSCreditCardAdditionalByAccount****************/
+					SET Environment.Variables.Temp.MSCreCarAddByAcc.creditCard[] = 
+						(SELECT cardCol	
+							FROM rMSCreCarAddByAcc.creditCard[] AS cardCol
+							WHERE cardCol.creditCardAccount.account.operationId = rInBody.creditCardAccount  --Cuenta
+								AND cardCol.creditCardAccount.brand.mnemonic = DecodeBrand(rInBody.subproduct.product.productType.mnemonic)); --Tarjeta
+	
+					/***********MSCustomerOperation****************/			
+					SET Environment.Variables.Temp.CustomerOperation = 
+						THE(SELECT offersCol	
+							FROM Environment.Variables.Temp.CustomerOperationCreditCards.creditCard[] AS offersCol
+							WHERE offersCol.creditCardAccount.account.operationId = rInBody.creditCardAccount);  --Cuenta
+--								AND offersCol.customerOperationPermission.customerOperation.operationId = rInBody.operationId); --Tarjeta
+					
+					IF EXISTS ( Environment.Variables.Temp.CustomerOperation.creditCardAccount[]) THEN
+						SET rInBody = Environment.Variables.Temp.CustomerOperation;
+						CREATE LASTCHILD OF rOutBody0 AS rOutBody1 NAME 'offerProductDetail' ;
+						
+						/*******************/
+						
+						SET rOutBody1.creditCard.affinityGroup		=rInBody.affinityGroup;
+						SET rOutBody1.creditCard.authorizationModel	=rInBody.authorizationModel;	
+								
+						SET rOutBody1.creditCard.creditCardAccount	=rInBody.creditCardAccount;	
+								
+						SET rOutBody1.creditCard.creditCardCategory			=rInBody.creditCardCategory;							
+						SET rOutBody1.creditCard.creditCardPaymentMethod	=rInBody.creditCardPaymentMethod;	--menmonic/internalValue/originalCode
+						SET rOutBody1.creditCard.enabled					=rInBody.enabled;
+						
+						SET rOutBody1.creditCard.customerOperationPermission.credit									=rInBody.customerOperationPermission.credit;
+						SET rOutBody1.creditCard.customerOperationPermission.customerOperation.bantotalOperationId	=rInBody.customerOperationPermission.customerOperation.bantotalOperationId;
+						SET rOutBody1.creditCard.customerOperationPermission.customerOperation.customerOperationId	=rInBody.customerOperationPermission.customerOperation.customerOperationId;
+						
+						SET rOutBody1.creditCard.customerOperationPermission.debit	=rInBody.customerOperationPermission.debit;
+						SET rOutBody1.creditCard.customerOperationPermission.others	=rInBody.customerOperationPermission.others;
+						SET rOutBody1.creditCard.customerOperationPermission.query	=rInBody.customerOperationPermission.query;
+						
+						SET rOutBody1.creditCard.nameOnCard			=rInBody.nameOnCard;
+						SET rOutBody1.creditCard.numberOnCard		=rInBody.numberOnCard;
+						SET rOutBody1.creditCard.purchaseAcum		=rInBody.purchaseAcum;
+						SET rOutBody1.creditCard.purchaseAcumUsd	=rInBody.purchaseAcumUsd;
+						SET rOutBody1.creditCard.settlementModel	=rInBody.settlementModel;
+						SET rOutBody1.creditCard.shortDesc			=rInBody.shortDesc;
+						SET rOutBody1.creditCard.specialCard		=rInBody.specialCard;
+					END IF;
+							/***********Fin MSCustomerOperation****************/
+		
+				IF (vAuxHolderFlag = TRUE)  THEN
+		
+					/***********MSCreditCardAdditionalByAccount****************/
+					
+					SET indexArray1	=CARDINALITY(Environment.Variables.Temp.MSCreCarAddByAcc.creditCard[]);
+					SET index1		=1;	 
+					
+					WHILE (index1 <= indexArray1) DO
+						SET rInBody = Environment.Variables.Temp.MSCreCarAddByAcc.creditCard[index1];
+						CREATE LASTCHILD OF rOutBody0.offerProductDetail.additionals AS rOutBody1 NAME 'card';
+						
+						--ActionType	
+						SET Environment.Variables.Temp.ActionType = 
+						THE(SELECT offersCol.actionType	
+							FROM rMSCusOpeByPro.customerOperation[] AS offersCol
+							WHERE offersCol.operationId = rInBody.numberOnCard AND offersCol.holderFlag = 'false'); --Tarjeta
+						
+						IF CARDINALITY(Environment.Variables.Temp.ActionType[]) = 0 THEN
+							SET Environment.Variables.Temp.ActionType = 
+								THE(SELECT offersCol.actionType	
+								FROM rMSCusOpeByPro.customerOperation[] AS offersCol
+								WHERE offersCol.creditCardAccount = rInBody.creditCardAccount.account.operationId AND offersCol.holderFlag = 'true'); --Tarjeta
+						END IF;
+							
+						SET rOutBody1.customerOperation	= Environment.Variables.Temp.ActionType;		
+						--Fin ActionType
+						
+						SET rOutBody1.customer.customerIdentification.identificationNumber	=rInBody.customerIdentification.identificationNumber;					 
+						SET rOutBody1.customer.customerIdentification.identificationType	=rInBody.customerIdentification.identificationType;	--mnemonic/originalCodes/shortDesc/internalValues
+														 
+						SET rOutBody1.lastDueDate			=rInBody.creditCardAccount.lastDueDate;
+						SET rOutBody1.minimunPaymentAmount	=rInBody.creditCardAccount.minimunPaymentAmount;
+	
+						SET rOutBody1.nameOnCard			=rInBody.nameOnCard;
+						SET rOutBody1.numberOnCard			=rInBody.numberOnCard;
+						
+						SET rOutBody1.product.productType.mnemonic	=DecodeProduct(rInBody.creditCardAccount.product.mnemonic);--rInBody.product.productType;	--mnemonic/originalCodes/internalValues	
+	
+						SET rOutBody1.purchaseAcum		=rInBody.purchaseAcum;						 
+						SET rOutBody1.purchaseAcumUsd	=rInBody.purchaseAcumUsd;
+	
+						SET rOutBody1.status			=rInBody.status; --mnemonic/originalCodes/shortDesc
+						SET index1 =index1 + 1;
+					END WHILE;
+					
+					/***********Fin MSCreditCardAdditionalByAccount****************/
+					
+				END IF; --rInBody.holderFlag == 'HOLDER'
+	
+			END IF; --vProductType is not null
+			
+			SET index0 = index0 + 1;
+		END WHILE;
+	END IF;
+	 ------  -- FIN Lista de Productos Origen [EXISTENTES] ---------------------------------------------------------------------------------------------------------------
+	 
+/************************ Procedure ******************************/
+	CREATE LASTCHILD OF rOutBodyCollection AS rOutBody0 NAME 'procedure';				
+	SET rOutBody0.(XMLNSC.Attribute)name = 'procedure'; 
+		
+		CREATE LASTCHILD OF rOutBody0 AS rOutBody1 NAME 'procedure';
+		SET rInBody = rSSProPerOrDra.procedure;	
+		
+		SET rOutBody0.bantotalAccount.customerOperationPermission.customerOperation.operationId	=rInBody.bantotalAccount.customerOperationPermission.customerOperation.operationId;
+		SET rOutBody0.branch.sBranchId		=rInBody.branch.sBranchId;
+		SET rOutBody0.creationDate			=rInBody.creationDate;
+		SET rOutBody0.creditRatingGrouper.creditRating.creditRatingType							=rInBody.creditRatingGrouper.creditRating.creditRatingType;--mnemonic
+		
+		SET rOutBody0.customer.basicIndividualData.address.verified	=rInBody.customer.basicIndividualData.address.verified;
+		SET rOutBody0.customer.basicIndividualData.sexCode			=rInBody.customer.basicIndividualData.sexCode; --menmonic/shordDesc
+		SET rOutBody0.customer.employmentDetails.fixedIncome		=rInBody.customer.employmentDetails.fixedIncome;
+		SET rOutBody0.customer.identificationNumber					=rInBody.customer.identificationNumber;
+		SET rOutBody0.customer.identificationType					=rInBody.customer.identificationType; --menmonic/shordDesc
+		
+		SET rOutBody0.customer.attorney.firstName1 = rSSCustomerPersonBantotal.customer.firstName1;
+		SET rOutBody0.customer.attorney.lastName1 = rSSCustomerPersonBantotal.customer.lastName1;
+		
+		SET rOutBody0.customer.attorney.customerType.mnemonic = rInBody.customer.attorney.customerType.mnemonic;
+		SET rOutBody0.customer.attorney.identificationType.mnemonic = rInBody.customer.attorney.identificationType.mnemonic;
+		SET rOutBody0.customer.attorney.identificationNumber = rInBody.customer.attorney.identificationNumber;
+		SET rOutBody0.hasAttorney = rInBody.hasAttorney;
+		
+		SET rOutBody0.internalId			=rInBody.internalId;
+		SET rOutBody0.lastModificationDate	=rInBody.lastModificationDate;
+		SET rOutBody0.noRiskIndicator		=rInBody.noRiskIndicator;
+		
+		SET rOutBody0.offer.branchLoginticsKitId											=rInBody.offer.branchLoginticsKitId;
+		SET rOutBody0.offer.packageProduct.customerOperationPermission.customerOperation	=rInBody.offer.packageProduct.customerOperationPermission.customerOperation; --shortDesc
+		
+		SET rOutBody0.officer.officerId	=rInBody.officer.officerId;
+		
+		SET rOutBody0.procedureFormType			=rInBody.procedureFormType; --mnemonic
+		SET rOutBody0.procedureInternalStatus	=rInBody.procedureInternalStatus; --menmonic/shordDesc
+		SET rOutBody0.procedureProductType		=rInBody.procedureProductType;
+		SET rOutBody0.procedureType				=rInBody.procedureType; --menmonic/shordDesc
+		
+		SET rOutBody0.witness.firstName1			=rInBody.witness.firstName1;
+		SET rOutBody0.witness.identificationNumber	=rInBody.witness.identificationNumber;
+		SET rOutBody0.witness.lastName1				=rInBody.witness.lastName1;
+		
+		SET rOutBody0.hasHolderAffidavit			=rInBody.hasHolderAffidavit;
+		SET rOutBody0.hasAdditionalAffidavit		=rInBody.hasAdditionalAffidavit;
+		SET rOutBody0.ageConversionType				=rInBody.ageConversionType;
+		SET rOutBody0.customerAuthorized			=rInBody.customerAuthorized;
+		SET rOutBody0.healthStatementInd			=rInBody.healthStatementInd;
+		SET rOutBody0.parnetHealthStatementInd		=rInBody.parnetHealthStatementInd;
+		
+		SET rOutBody0.channel =rInBody.channel;
+		SET rOutBody0.saleDate =rInBody.saleDate;
+		SET rOutBody0.saleType =rInBody.saleType;
+		 
+
+
+/************************ Fin Procedure ******************************/ 
+
+/************************ WageAgreement ******************************/
+	CREATE LASTCHILD OF rOutBodyCollection AS rOutBody0 NAME 'collection';				
+	SET rOutBody0.(XMLNSC.Attribute)name = 'wageAgreements'; 
+	
+	SET index0		=1;		
+	SET indexArray0	=CARDINALITY(rMSWagAgrByCus.wageAgreement[]);
+	
+	WHILE (index0 <= indexArray0) DO
+		
+		CREATE LASTCHILD OF rOutBody0 AS rOutBody1 NAME 'wageAgreement';
+		SET rInBody = rMSWagAgrByCus.wageAgreement[index0];	
+		
+		SET rOutBody1.account.branch.sBranchId		=rInBody.account.branch.sBranchId;
+		SET rOutBody1.account.currency				=rInBody.account.currency; 	--mnemonic/originalCodes/shortDesc
+		SET rOutBody1.account.customerOperationPermission.customerOperation.customer.identificationNumber=rInBody.account.customerOperationPermission.customerOperation.customer.identificationNumber;
+		SET rOutBody1.account.isoProduct.mnemonic	=rInBody.account.isoProduct;	--mnemonic/originalCodes/shortDesc
+		SET rOutBody1.account.operationId			=rInBody.account.operationId;
+		SET rOutBody1.account.subaccount			=rInBody.account.subaccount;
+		
+		SET rOutBody1.agreementName		=rInBody.agreementName;
+		SET rOutBody1.category			=rInBody.category;
+		SET rOutBody1.customerOperationPermission.customerOperation.operationId=rInBody.customerOperationPermission.customerOperation.operationId;
+		SET rOutBody1.hasAccreditation	=rInBody.hasAccreditation;		
+		
+		SET index0 = index0 + 1;
+		
+	END WHILE;
+
+/************************ Fin WageAgreement ******************************/
+
+
+/************************ Armo una lista de Caja de ahorro con sus acciones (Nueva, Baja, Vincular o Monoproducto) ******************************/
+--	CREATE LASTCHILD OF rOutBodyCollection AS rOutBody0 NAME 'collection';				
+--	SET rOutBody0.(XMLNSC.Attribute)name = 'accounts'; 
+--	
+--	SET index0		=1;		
+--	SET indexArray0	=CARDINALITY(rMSAccDetByProId.account[]);
+--	SET indexArray1	=CARDINALITY(rMSCusOpeByPro.customerOperation[]);
+--	DECLARE indexTotal INTEGER 0;
+--	SET indexTotal = indexArray0 + indexArray1;
+--	
+--	WHILE (index0 <= indexTotal) DO
+--		
+--		IF (index0 <= indexArray0)THEN
+--			--cuentas nuevas
+--			SET rInBody = rMSAccDetByProId.account[index0];
+--		ELSE
+--			--cuentas existentes
+--			SET rInBody = rMSAccDetByProId.customerOperation[index0-indexArray0];
+--		END IF;		
+--		
+--		--cuentas nuevas
+--		IF (index0 <= indexArray0 and rInBody.isoProduct.mnemonic = 'SAVING_ACCOUNT')THEN
+--			CREATE LASTCHILD OF rOutBody0 AS rOutBody1 NAME 'account';
+--			SET rOutBody1.currency = rInBody.currency; 	--mnemonic/originalCodes/shortDesc
+--			SET rOutBody1.customerOperationPermission.customerOperation.actionType.mnemonic = 'Nueva';
+--		END IF;
+--		
+--		--cuentas existentes
+--		IF (index0 > indexArray0 and rInBody.isoProduct.mnemonic = 'SAVING_ACCOUNT')THEN
+--			CREATE LASTCHILD OF rOutBody0 AS rOutBody1 NAME 'account';
+--			SET rOutBody1.currency = rInBody.currency; 	--mnemonic/originalCodes/shortDesc
+--			SET rOutBody1.customerOperationPermission.customerOperation.actionType = rInBody.actionType;
+--		END IF;	
+--		
+--		SET index0 = index0 + 1;
+--		
+--	END WHILE;
+/************************ Fin Armo una lista de Caja de ahorro con sus acciones (Nueva, Baja, Vincular o Monoproducto) ******************************/       
+
+       
+		SET Environment.Variables.Temp =NULL; --Eliminar todo lo temporal
+		RETURN TRUE;
+	END;
+
+END MODULE;
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_BuildMsgEmpty
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE soap NAMESPACE 'http://www.w3.org/2003/05/soap-envelope';
+		SET OutputRoot.Properties	=Environment.Variables.MsgOriginal.Properties;							  
+		SET OutputRoot.MQMD 		=Environment.Variables.MsgOriginal.MQMD;
+	
+		-- Copio Header y Body
+		SET OutputRoot.XMLNSC.soap:Envelope.soap:Header.*:metadata					=Environment.Variables.Header;
+		SET OutputRoot.XMLNSC.soap:Envelope.soap:Header.*:metadata.serviceId		='singleSelectOfferToPDFProcedure';
+		SET OutputRoot.XMLNSC.soap:Envelope.soap:Header.*:metadata.serviceVersion	='0.0';	
+		
+        CREATE FIELD OutputRoot.XMLNSC.soap:Envelope.soap:Body.srvRs:singleSelectOfferToPDFProcedureResponse;		
+        DECLARE rOutBody REFERENCE TO OutputRoot.XMLNSC.soap:Envelope.soap:Body.srvRs:singleSelectOfferToPDFProcedureResponse;
+		
+		SET rOutBody.collection.offer.(XMLNSC.Attribute)name	='accepted';
+		SET rOutBody.collection.offer.(XMLNSC.Attribute)type	='empty';
+		--attribute show elements
+		SET rOutBody.collection.offer.statusReason.status.longDesc	='accepted';
+		SET rOutBody.collection.offer.statusReason.stampAdditional	='empty';
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_BuildMsgsToSplit3
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		DECLARE soap NAMESPACE 'http://www.w3.org/2003/05/soap-envelope';
+		/***** Normalize singleSelectProductDetail *******/
+		DECLARE rSSProDet REFERENCE TO Environment.Variables.SSProductDetail;  --Varias respuestas
+		DECLARE index0 INTEGER 1;		
+		DECLARE indexArray0 INTEGER CARDINALITY(rSSProDet.*:Envelope[]);
+		DECLARE vSpecialCard CHARACTER '';
+		DECLARE vBandPP BOOLEAN FALSE;
+
+		DECLARE rOutBody0 REFERENCE TO Environment;
+		WHILE (index0 <= indexArray0) DO
+		   	DECLARE rInBody REFERENCE TO rSSProDet.*:Envelope[index0].*:Body.*:singleSelectProductDetailResponse;
+		   	CREATE LASTCHILD OF Environment.Variables.SSProductDetailRequestNormalized AS rOutBody0 NAME 'collection';
+	
+		   	IF(rInBody.product.productId = '998') OR (rInBody.product.productId = '999') THEN  --TIPO DE CHEQUERA vinculada al a CUENTA 
+		   	     SET rOutBody0.(XMLNSC.Attribute)name	='products';
+		   	     SET rOutBody0.(XMLNSC.Attribute)key	=rInBody.product.productId;
+		   	     SET rOutBody0.(XMLNSC.Attribute)type	='CHEQUERA';
+		   	     
+		   	     SET rOutBody0.packageAccount.(XMLNSC.Attribute)name	='packageAccount';
+		   	     SET rOutBody0.packageAccount.operationId				=rInBody.product.productId;		
+		   	     
+		   	     SET rOutBody0.product.(XMLNSC.Attribute)name	='product';
+		   	ELSE
+		   	     SET rOutBody0.(XMLNSC.Attribute)name	='products';
+		   	     SET rOutBody0.(XMLNSC.Attribute)key	=rInBody.product.productId;
+		   	     SET rOutBody0.(XMLNSC.Attribute)type	=rInBody.product.productType.shortDesc;
+		   	     
+		   	     SET rOutBody0.account.(XMLNSC.Attribute)name	='account';
+		   	     SET rOutBody0.account.totalAgreements			=rInBody.account.totalAgreements;	
+		   	     
+		   	     SET rOutBody0.creditCard.(XMLNSC.Attribute)name			='creditCard';	
+		   	     SET rOutBody0.creditCard.affinityGroup						=rInBody.creditCard.affinityGroup;	
+		   	     SET rOutBody0.creditCard.activationDate					=rInBody.creditCard.activationDate;	
+		   	     SET rOutBody0.creditCard.authorizationModel				=rInBody.creditCard.authorizationModel;	
+		   	     SET rOutBody0.creditCard.creditCardAccount					=rInBody.creditCard.creditCardAccount;			   	     
+		   	     SET rOutBody0.creditCard.creditCardAccount.brand			=rInBody.creditCard.creditCardAccount.brand;			--mnemonic/originalCodes/shortDesc			   	       
+		   	     SET rOutBody0.creditCard.creditCardAccount.creditCardType	=rInBody.creditCard.creditCardAccount.creditCardType;	--mnemonic/originalCodes/shortDesc		   	     
+		   	     SET rOutBody0.creditCard.creditCardCategory				=rInBody.creditCard.creditCardCategory;					--mnemonic/originalCodes/shortDesc		   	      
+		   	     SET rOutBody0.creditCard.installmentCharge					=rInBody.creditCard.installmentCharge;
+		   	     SET rOutBody0.creditCard.maintenanceCharge					=rInBody.creditCard.maintenanceCharge;
+		   	     
+		   	     SET rOutBody0.creditCard.shortDesc		=rInBody.creditCard.shortDesc;
+		   	     SET rOutBody0.creditCard.specialCard	=rInBody.creditCard.specialCard;
+		   	     IF rInBody.product.productType.shortDesc = 'TD' THEN  SET vSpecialCard = rInBody.creditCard.specialCard; END IF;
+		   	     	
+		   	     SET rOutBody0.packageAccount.(XMLNSC.Attribute)name	='packageAccount';
+		   	     SET rOutBody0.packageAccount.operationId				=rInBody.packageAccount.operationId;	
+		   	     SET rOutBody0.packageAccount.summaryType.shortDesc		=rInBody.packageAccount.summaryType.shortDesc;
+		   	    
+		   	     SET rOutBody0.product.(XMLNSC.Attribute)name	='product';
+		   	     SET rOutBody0.product.productType.shortDesc	=rInBody.product.productType.shortDesc;	
+		   	     
+		   	     SET rOutBody0.product.shortDesc				=rInBody.product.shortDesc;	
+		   	     SET rOutBody0.product.productId				=rInBody.product.productId;	
+		   	     IF rInBody.product.productType.shortDesc = 'PP' THEN
+		   	     	SET vBandPP = TRUE;
+		   	     END IF;
+		   	     
+		   	END IF;		   			   	
+		   	SET index0 = index0 +1;
+	END WHILE; --(index0 <= indexArray0)
+/***** End Normalize singleSelectProductDetail *******/
+     
+        --Properties
+		SET OutputRoot.Properties		=Environment.Variables.MsgOriginal.Properties;
+		SET OutputRoot.MQMD				=Environment.Variables.MsgOriginal.MQMD;	
+		SET OutputRoot.MQMD.ReplyToQ	='SINGLESELECTOFFERTOPDFPROCEDURES3.ENTRY';
+		SET OutputRoot.MQMD.CorrelId	=Environment.Variables.MsgOriginal.MQMD.MsgId;
+		
+        -- Se crea la estructura basica de mensajes para el Split and Join
+		CREATE FIELD OutputRoot.XMLNSC.message;
+		CREATE FIELD OutputRoot.XMLNSC.message.header;
+		CREATE FIELD OutputRoot.XMLNSC.message.body.messages;
+		DECLARE rOutMsg REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutHeader REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutBody REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutMsg1 REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOrigMsg  REFERENCE TO Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Body.*:singleSelectOfferToPDFProcedureRequest;
+		/******************* massiveSelectLimitCardDb ************************/
+		IF(vSpecialCard is not null AND vSpecialCard <> '' )THEN
+		  CREATE LASTCHILD OF rOutMsg AS rOutMsg1 NAMESPACE soap NAME 'Envelope';
+		  CREATE LASTCHILD OF rOutMsg1 AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		  SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		  SET rOutHeader.*:metadata.serviceId			='massiveSelectLimitCardDb';
+		  SET rOutHeader.*:metadata.serviceVersion	=M_S_LIMITCARDDB_VERSION;	
+		-- Body
+		  CREATE LASTCHILD OF rOutMsg1 AS rOutBody NAMESPACE soap NAME 'Body';	
+		  CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvMsLimCardDb NAME 'massiveSelectLimitCardDbRequest';	
+		    SET rOutBody.cardDb.(XMLNSC.Attribute)name	='cardDb';		
+			SET rOutBody.cardDb.characteristic			=vSpecialCard; 
+		END IF;
+		/******************* Fin massiveSelectLimitCardDb ************************/
+		/******************* singleSelectLoanProcedureDetail ************************/
+			IF( vBandPP=TRUE )THEN 
+				CREATE LASTCHILD OF rOutMsg AS rOutMsg1 NAMESPACE soap NAME 'Envelope';
+				CREATE LASTCHILD OF rOutMsg1 AS rOutHeader NAMESPACE soap NAME 'Header';	
+				-- Header
+				SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+				SET rOutHeader.*:metadata.serviceId			='singleSelectLoanProcedureDetail';
+				SET rOutHeader.*:metadata.serviceVersion	=S_S_LOANPRODETAIL_VERSION;	
+				-- Body
+				CREATE LASTCHILD OF rOutMsg1 AS rOutBody NAMESPACE soap NAME 'Body';	
+				CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsLoanProDet NAME 'singleSelectLoanProcedureDetailRequest';	
+
+		 		SET rOutBody.customer.(XMLNSC.Attribute)name	= 'customer';	
+	            SET rOutBody.customer.identificationNumber		= rOrigMsg.procedure.customer.identificationNumber;
+	            SET rOutBody.customer.identificationType		= rOrigMsg.procedure.customer.identificationType;
+	            SET rOutBody.customer.customerIdentification    = rOrigMsg.procedure.customer.customerIdentification;
+	            SET rOutBody.customer.basicIndividualData		= rOrigMsg.procedure.customer.basicIndividualData;
+	            SET rOutBody.customer.residenceCode				= rOrigMsg.procedure.customer.residenceCode; --mnemonic
+	            
+	            SET rOutBody.procedure.(XMLNSC.Attribute)name	= 'procedure';
+	            SET rOutBody.procedure.piid		                = rOrigMsg.procedure.piid;	
+	            SET rOutBody.procedure.procedureProductType		= rOrigMsg.procedure.procedureProductType;
+	            SET rOutBody.procedure.procedureType.mnemonic		= rOrigMsg.procedure.procedureType.mnemonic;
+		    END IF;
+		/******************* Fin singleSelectLoanProcedureDetail ************************/
+		RETURN TRUE; 
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_BuildMsgsToSplit4
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+        DECLARE soap NAMESPACE 'http://www.w3.org/2003/05/soap-envelope';
+        DECLARE rSSLoanDetail   	REFERENCE TO Environment.Variables.SSLoanProcDetail.*:Envelope.*:Body.*:singleSelectLoanProcedureDetailResponse;
+		DECLARE rSSProPerOrDra		REFERENCE TO Environment.Variables.SSProcedurePersistenceOrDraft.*:Envelope.*:Body.*:singleSelectProcedurePersistenceOrDraftResponse;
+
+        --Properties
+		SET OutputRoot.Properties		=Environment.Variables.MsgOriginal.Properties;
+		SET OutputRoot.MQMD				=Environment.Variables.MsgOriginal.MQMD;	
+		SET OutputRoot.MQMD.ReplyToQ	='SINGLESELECTOFFERTOPDFPROCEDURES4.ENTRY';
+		SET OutputRoot.MQMD.CorrelId	=Environment.Variables.MsgOriginal.MQMD.MsgId;
+		
+        -- Se crea la estructura basica de mensajes para el Split and Join
+		CREATE FIELD OutputRoot.XMLNSC.message;
+		CREATE FIELD OutputRoot.XMLNSC.message.header;
+		CREATE FIELD OutputRoot.XMLNSC.message.body.messages;
+		DECLARE rOutMsg REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutHeader REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutBody REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOutMsg1 REFERENCE TO OutputRoot.XMLNSC.message.body.messages;		
+		DECLARE rOrigMsg  REFERENCE TO Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Body.*:singleSelectOfferToPDFProcedureRequest;
+
+		/******************* singleSelectOfferDescriptionForLoan ************************/
+
+		CREATE LASTCHILD OF rOutMsg AS rOutMsg1 NAMESPACE soap NAME 'Envelope';
+		CREATE LASTCHILD OF rOutMsg1 AS rOutHeader NAMESPACE soap NAME 'Header';	
+		-- Header
+		SET rOutHeader								=Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;
+		SET rOutHeader.*:metadata.serviceId			='singleSelectOfferDescriptionForLoan';
+		SET rOutHeader.*:metadata.serviceVersion	=S_S_OFFERDESCLOAN_VERSION;	
+		-- Body
+	
+			CREATE LASTCHILD OF rOutMsg1 AS rOutBody NAMESPACE soap NAME 'Body';	
+			CREATE LASTCHILD OF rOutBody AS rOutBody NAMESPACE srvSsLoanProDet NAME 'singleSelectOfferDescriptionForLoanRequest';	
+
+			SET rOutBody.loan.(XMLNSC.Attribute)name='loan';				
+			SET rOutBody.loan.campaignId			=rSSLoanDetail.loan.campaignId;	
+			SET rOutBody.loan.currencyCode.mnemonic	=rSSLoanDetail.loan.currencyCode.mnemonic;	
+			SET rOutBody.loan.productId				=rSSLoanDetail.loan.productId;	
+			SET rOutBody.loan.salaryRetention.retentionOrganization.organizationCode	=rSSLoanDetail.loan.salaryRetention.retentionOrganization.organizationCode;	
+			
+			SET rOutBody.loan.subproduct.mnemonic						=rSSLoanDetail.loan.subproduct.mnemonic;	
+			SET rOutBody.loan.subproduct.product.isoProduct.mnemonic	=rSSLoanDetail.loan.subproduct.product.isoProduct.mnemonic;	
+			
+			SET rOutBody.loan.wageAgreement.account.customerOperationPermission.customerOperation.customer.identificationNumber	=rSSLoanDetail.loan.wageAgreement.account.customerOperationPermission.customerOperation.customer.identificationNumber;	
+	
+			SET rOutBody.loan.loanLine = rSSLoanDetail.loan.loanLine;
+			SET rOutBody.loan.customerOperationPermission.customerOperation.bantotalOperationId			=rSSLoanDetail.loan.customerOperationPermission.customerOperation.bantotalOperationId;
+			SET rOutBody.loan.customerOperationPermission.customerOperation.customer.segment.sSegmentId	=rSSLoanDetail.loan.customerOperationPermission.customerOperation.customer.segment.sSegmentId;
+
+			SET rOutBody.loan.officerParameter.amount = rSSLoanDetail.loan.officerParameter.amount;
+			SET rOutBody.loan.officerParameter.term = rSSLoanDetail.loan.officerParameter.term;
+	
+			SET rOutBody.procedure.(XMLNSC.Attribute)name	='procedure';				
+			SET rOutBody.procedure.creationDate				=rSSProPerOrDra.procedure.creationDate;	
+	
+		/******************* Fin singleSelectOfferDescriptionForLoan ************************/
+		RETURN TRUE; 
+	END;
+END MODULE;
+
+
+/*CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_SaveMSLimitCardDb
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.Variables.MSLimitCardDb.*:Envelope = InputRoot.XMLNSC.*:Envelope;
+		RETURN TRUE;
+	END;
+END MODULE;*/
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_SetOutToEnv
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE rInBody  REFERENCE TO InputRoot.XMLNSC.message;
+
+		SET OutputRoot = InputRoot;
+
+		SET Environment.Variables.SSOfferDescForLoan.*:Envelope  = THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectOfferDescriptionForLoan');
+		
+		RETURN TRUE;
+	END;
+
+END MODULE;
+
+CREATE FILTER MODULE singleSelectOfferToPDFProcedure_Offer_
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE rInBody  REFERENCE TO Root.XMLNSC.message;
+		
+		SET Environment.Variables.MSAccountDetailByProductId.*:Envelope			=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectAccountDetailByProductId');
+		SET Environment.Variables.SSProductDetail.*:Envelope[]					=(SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectProductDetail');--Varias respuestas
+		CREATE LASTCHILD OF Environment.Variables DOMAIN 'XMLNSC' NAME 'MSCustomerOperation';  --para no perder los atributos
+		--CREATE FIELD Environment.Variables.MSCustomerOperation DOMAIN('XMLNSC');
+		SET Environment.Variables.MSCustomerOperation.*:Envelope				=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectCustomerOperation');
+		SET Environment.Variables.MSCreditCardAdditionalByAccount.*:Envelope	=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectCreditCardAdditionalByAccount');
+		SET Environment.Variables.SSProductDescription.*:Envelope				=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectProductDescription');
+		SET Environment.Variables.SSCustomerPersonBantotal.*:Envelope			=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectCustomerPersonBantotal');
+		CREATE LASTCHILD OF Environment.Variables DOMAIN 'XMLNSC' NAME 'MSProcedureLogByProcedure'; --para no perder los atributos
+		SET Environment.Variables.MSProcedureLogByProcedure.*:Envelope			=THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectProcedureLogByProcedure');
+
+	
+		RETURN CARDINALITY (Environment.Variables.SSProductDetail.*:Envelope[])>0;
+	END;
+
+END MODULE;
+
+CREATE FILTER MODULE singleSelectOfferToPDFProcedure_MoreCall_
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN		
+		RETURN EXISTS(Root.XMLNSC.message.body.messages.*:Envelope[]);
+	END;	
+END MODULE;
+
+CREATE FILTER MODULE singleSelectOfferToPDFProcedure_ResponseOk_
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		-- Verifica si alguno de los mensajes vino con error o vacio
+		DECLARE countSplitMessages INTEGER CARDINALITY(Root.XMLNSC.message.body.messages.*:Envelope[]);
+		DECLARE indexMessage INTEGER 1;
+		DECLARE indexError INTEGER 0;
+		DECLARE rsOk BOOLEAN TRUE; 
+		
+		-- Recorre la lista de mensajes del split y valida si hay error
+		WHILE (indexMessage <= countSplitMessages) AND rsOk DO 	
+				IF (CARDINALITY(Root.XMLNSC.message.body.messages.*:Envelope[indexMessage].*:Body.*:Fault[]) > 0) THEN
+					SET rsOk = FALSE;
+				-- FIXME: validar contra errorCode.mnemonic<>0000 y 0099 que es lista vacia
+				ELSEIF (Root.XMLNSC.message.body.messages.*:Envelope[indexMessage].*:Body.*.errorCode.mnemonic <> '0000' AND 
+					Root.XMLNSC.message.body.messages.*:Envelope[indexMessage].*:Body.*.errorCode.mnemonic <> '0040') THEN --0040 msWageAgreementByCustomerResponse -->No se encontró información del oficial para la consulta realizada.
+					SET rsOk = FALSE;
+				END IF;		
+				SET indexMessage = indexMessage + 1;
+
+		END WHILE;
+
+		RETURN rsOk;
+
+	END;
+
+END MODULE;
+
+
+CREATE FILTER MODULE singleSelectOfferToPDFProcedure_PP_
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE rInBody  REFERENCE TO Root.XMLNSC.message;
+
+        SET Environment.Variables.SSLoanProcDetail.*:Envelope  = THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='singleSelectLoanProcedureDetail');
+		SET Environment.Variables.MSLimitCardDb.*:Envelope     = THE (SELECT rList FROM rInBody.body.messages.*:Envelope[] AS rList WHERE rList.*:Header.*:metadata.serviceId='massiveSelectLimitCardDb');     
+		
+		IF EXISTS (Environment.Variables.SSLoanProcDetail.*:Envelope[]) THEN
+			RETURN TRUE;
+		ELSE
+			RETURN FALSE;
+		END IF;
+	END;
+
+END MODULE;
+
+
+CREATE COMPUTE MODULE singleSelectOfferToPDFProcedure_returnError2channel
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		-- Declare namespaces
+		DECLARE soapString CONSTANT CHARACTER commonEsql.getSoapNamespace();
+		DECLARE soap NAMESPACE soapString;
+		DECLARE mdString CONSTANT CHARACTER commonEsql.getMetadataNamespace();
+		DECLARE md NAMESPACE mdString;
+		
+		--Properties
+		SET OutputRoot.Properties		=Environment.Variables.MsgOriginal.Properties;
+		SET OutputRoot.MQMD				=Environment.Variables.MsgOriginal.MQMD;	
+	
+		DECLARE rInBody REFERENCE TO InputRoot.XMLNSC.message.body.messages;
+		
+		DECLARE countSplitMessages INTEGER CARDINALITY(InputRoot.XMLNSC.message.body.messages.*:Envelope[]);
+		DECLARE indexMessage INTEGER 1;
+		DECLARE index INTEGER 1;
+		
+		DECLARE endWhile BOOLEAN TRUE;
+
+		-- Copio Header
+		SET OutputRoot.XMLNSC.soap:Envelope.soap:Header = Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header;												 	
+		SET OutputRoot.XMLNSC.soap:Envelope.soap:Header.md:metadata.serviceId = Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header.*:metadata.serviceId;
+		SET OutputRoot.XMLNSC.soap:Envelope.soap:Header.md:metadata.serviceVersion = Environment.Variables.MsgOriginal.XMLNSC.*:Envelope.*:Header.*:metadata.serviceVersion;
+			
+		-- Recorre la lista de mensajes del split y retorna los errores
+		WHILE (indexMessage <= countSplitMessages) AND endWhile DO 	
+				IF (CARDINALITY(rInBody.*:Envelope[indexMessage].*:Body.*:Fault[]) > 0) THEN
+
+					DECLARE inBodyError REFERENCE TO  rInBody.*:Envelope[indexMessage].*:Body.*:Fault;	
+			
+					CALL commonEsql.BuildError(OutputRoot,inBodyError.*:Detail.*:errors.error.cmmCode,inBodyError.*:Detail.*:errors.error.cmmMsg, 
+					inBodyError.*:Detail.*:errors.error.kind, inBodyError.*:Detail.*:errors.error.severity, 
+					rInBody.*:Envelope[indexMessage].*:Header.*:metadata.serviceId, inBodyError.*:Detail.*:errors.error.source, 
+					inBodyError.*:Detail.*:errors.error.sourceCode, inBodyError.*:Detail.*:errors.error.detail);
+	
+					SET endWhile = FALSE;--cortar while
+				ELSEIF (CARDINALITY(rInBody.*:Envelope[indexMessage].*:Body.*.errorCode[]) > 0
+					AND rInBody.*:Envelope[indexMessage].*:Body.*.errorCode.mnemonic <> '0000'
+					AND rInBody.*:Envelope[indexMessage].*:Body.*.errorCode.mnemonic <> '0099') THEN					
+
+						DECLARE inBodyErrorBuss REFERENCE TO  rInBody.*:Envelope[indexMessage].*:Body.*.errorCode;
+				
+						CALL commonEsql.BuildError(OutputRoot,inBodyErrorBuss.mnemonic,inBodyErrorBuss.shortDesc, 
+						'GENERIC', 'ERROR', 
+						rInBody.*:Envelope[indexMessage].*:Header.*:metadata.serviceId, rInBody.*:Envelope[indexMessage].*:Header.*:metadata.serviceId, 
+						inBodyErrorBuss.mnemonic,inBodyErrorBuss.shortDesc);
+		
+						SET endWhile = FALSE;--cortar while
+				END IF;	
+				SET indexMessage = indexMessage + 1;
+		END WHILE;
+		RETURN TRUE;
+		END;
+END MODULE;
+
